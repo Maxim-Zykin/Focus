@@ -6,14 +6,24 @@
 //
 
 import UIKit
+import Foundation
 
 class HomeViewController: UIViewController {
     
-    var homeControllerModel: HomeViewControllerModel = .init()
+    var homeControllerModel = HomeViewControllerModel()
+    var seconds = ""
+    
+    private var viewModel: HomeViewControllerModelProtocol!{
+        didSet{
+            viewModel.timerAction {
+                self.seconds
+            }
+        }
+    }
     
     private let shape = CAShapeLayer()
     
-    private var timer = Timer()
+    private var timer: Timer?
     
     private let sessionLabel: UILabel = {
         let label = UILabel()
@@ -25,7 +35,7 @@ class HomeViewController: UIViewController {
     
     private var timerLabel: UILabel = {
         let label = UILabel()
-        label.text = "00"
+        label.text = "00:00"
         label.textColor = Resouces.Color.titleColor
         label.font = Resouces.Fonts.helveticaRegular(size: 35)
         return label
@@ -40,15 +50,28 @@ class HomeViewController: UIViewController {
         return button
     }()
     
+    private let resetButton: UIButton = {
+        let button = UIButton()
+        button.layer.cornerRadius = 10
+        button.setTitle(Resouces.Text.Label.reset, for: .normal)
+        button.backgroundColor = Resouces.Color.reset
+        button.titleLabel?.font = Resouces.Fonts.helveticaBold(size: 27)
+        return button
+    }()
+    
+    
     override func viewDidLoad() {
         setupUI()
         createСircle()
         addTarget()
-        timerLabel.text = String(homeControllerModel.duretionTimer)
+        timerLabel.text = String(" Go")
+        print(seconds)
+        
     }
     
     private func addTarget() {
         startButton.addTarget(self, action: #selector(startButtonTapped), for: .touchUpInside)
+        resetButton.addTarget(self, action: #selector(resetButtonTapped), for: .touchUpInside)
     }
     
     @objc func startButtonTapped() {
@@ -56,11 +79,33 @@ class HomeViewController: UIViewController {
         timer = Timer.scheduledTimer(timeInterval: 1, target: self, selector: #selector(timerAction), userInfo: nil, repeats: true)
     }
     
+    @objc func resetButtonTapped() {
+        timer?.invalidate()
+        timer = nil
+        animationCircle()
+        timer = Timer.scheduledTimer(timeInterval: 1, target: self, selector: #selector(timerAction), userInfo: nil, repeats: true)
+
+    }
+    
     @objc func timerAction() {
-        homeControllerModel.timerAction()
-        timerLabel.text = String(homeControllerModel.duretionTimer)
+        
+        homeControllerModel.formatedTimer()
+        let date = Date(timeIntervalSince1970: TimeInterval(homeControllerModel.duretionTimer))
+        let formatter = DateFormatter()
+        formatter.dateFormat = "mm:ss"
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        let formattedTime = formatter.string(from: date)
+        
+        if(homeControllerModel.duretionTimer > 0){
+//            let minutes = String(homeControllerModel.duretionTimer / 60)
+//            let seconds = String(homeControllerModel.duretionTimer % 60)
+//            timerLabel.text = minutes + ":" + "0"+seconds
+        }
+        
+       // homeControllerModel.timerAction()
+        timerLabel.text = formattedTime
         if homeControllerModel.duretionTimer == 0 {
-            timer.invalidate()
+            timer?.invalidate()
         }
     }
     
@@ -96,22 +141,36 @@ class HomeViewController: UIViewController {
     }
     
     private func setupUI() {
+        
+        let stackView = UIStackView(arrangedSubviews: [resetButton, startButton])
+        stackView.axis = .horizontal
+        stackView.spacing = 30
+        stackView.distribution = .fillEqually
+        
         view.backgroundColor = Resouces.Color.background
         
         view.addView(sessionLabel)
-        view.addView(startButton)
+        //view.addView(startButton)
+        
+        view.addView(stackView)
         view.addSubview(timerLabel)
         timerLabel.sizeToFit()
+        timerLabel.setNeedsDisplay()
         timerLabel.center = view.center
         
         NSLayoutConstraint.activate([
             sessionLabel.topAnchor.constraint(equalTo: self.view.topAnchor, constant: 80),
             sessionLabel.leadingAnchor.constraint(equalTo: self.view.leadingAnchor, constant: 30),
+        
+            stackView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            stackView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -100),
+            stackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            stackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             
-            startButton.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -100),
-            startButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            startButton.heightAnchor.constraint(equalToConstant: 50),
-            startButton.widthAnchor.constraint(equalToConstant: 200),
+//            startButton.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -100),
+//            startButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+//            startButton.heightAnchor.constraint(equalToConstant: 50),
+//            startButton.widthAnchor.constraint(equalToConstant: 200),
 
         ])
     }

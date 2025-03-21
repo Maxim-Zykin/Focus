@@ -7,17 +7,29 @@
 
 import Foundation
 
-class HomeViewControllerModel {
+protocol HomeViewControllerModelProtocol {
+    func timerAction(completion: @escaping () -> Void)
+}
+
+class HomeViewControllerModel: HomeViewControllerModelProtocol {
     
    private let timer = Timer()
     
-    var duretionTimer = 15
+    var duretionTimer = 150
     
-    func timerAction(){
+    func timerAction(completion: @escaping () -> Void){
         if duretionTimer > 0 {
             duretionTimer -= 1
             print(duretionTimer)
         }
+    }
+    
+    func formatedTimer() {
+        let date = Date(timeIntervalSince1970: TimeInterval(duretionTimer))
+        let formatter = DateFormatter()
+        formatter.dateFormat = "mm:ss"
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        let formattedTime = formatter.string(from: date)
     }
 }
 

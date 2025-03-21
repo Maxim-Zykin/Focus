@@ -1,6 +1,23 @@
 {
   "sourceLanguage" : "ru",
   "strings" : {
+    "перезапустить" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset"
+          }
+        }
+      }
+    },
     "сессия" : {
       "extractionState" : "manual",
       "localizations" : {
