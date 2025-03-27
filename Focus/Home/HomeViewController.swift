@@ -11,15 +11,8 @@ import Foundation
 class HomeViewController: UIViewController {
     
     var homeControllerModel = HomeViewControllerModel()
-    var seconds = ""
     
-    private var viewModel: HomeViewControllerModelProtocol!{
-        didSet{
-            viewModel.timerAction {
-                self.seconds
-            }
-        }
-    }
+    var seconds = ""
     
     private let shape = CAShapeLayer()
     
@@ -62,6 +55,7 @@ class HomeViewController: UIViewController {
     
     override func viewDidLoad() {
         setupUI()
+        setupViewModel()
         createСircle()
         addTarget()
         timerLabel.text = String(" Go")
@@ -76,37 +70,12 @@ class HomeViewController: UIViewController {
     
     @objc func startButtonTapped() {
         animationCircle()
-        timer = Timer.scheduledTimer(timeInterval: 1, target: self, selector: #selector(timerAction), userInfo: nil, repeats: true)
+        homeControllerModel.startTimer()
     }
     
-    @objc func resetButtonTapped() {
-        timer?.invalidate()
-        timer = nil
-        animationCircle()
-        timer = Timer.scheduledTimer(timeInterval: 1, target: self, selector: #selector(timerAction), userInfo: nil, repeats: true)
-
-    }
-    
-    @objc func timerAction() {
-        
-        homeControllerModel.formatedTimer()
-        let date = Date(timeIntervalSince1970: TimeInterval(homeControllerModel.duretionTimer))
-        let formatter = DateFormatter()
-        formatter.dateFormat = "mm:ss"
-        formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        let formattedTime = formatter.string(from: date)
-        
-        if(homeControllerModel.duretionTimer > 0){
-//            let minutes = String(homeControllerModel.duretionTimer / 60)
-//            let seconds = String(homeControllerModel.duretionTimer % 60)
-//            timerLabel.text = minutes + ":" + "0"+seconds
-        }
-        
-       // homeControllerModel.timerAction()
-        timerLabel.text = formattedTime
-        if homeControllerModel.duretionTimer == 0 {
-            timer?.invalidate()
-        }
+    @objc private func resetButtonTapped() {
+        homeControllerModel.resetTimer()
+        resetCircleAnimation()
     }
     
     private func createСircle() {
@@ -132,12 +101,25 @@ class HomeViewController: UIViewController {
     }
     
     private func animationCircle() {
+        shape.removeAllAnimations()
         let animation = CABasicAnimation(keyPath: "strokeEnd")
+        animation.fromValue = 0.0
         animation.toValue = 0.8
         animation.duration = CFTimeInterval(homeControllerModel.duretionTimer)
         animation.isRemovedOnCompletion = false
         animation.fillMode = .forwards
-        shape.add(animation, forKey: "animation")
+        shape.add(animation, forKey: "animationCircle")
+    }
+    
+    private func resetCircleAnimation() {
+        shape.removeAllAnimations()
+        shape.strokeEnd = 0
+    }
+    
+    private func setupViewModel() {
+        homeControllerModel.timerUpdated = { [weak self] timeString in
+            self?.timerLabel.text = timeString
+        }
     }
     
     private func setupUI() {
@@ -166,12 +148,6 @@ class HomeViewController: UIViewController {
             stackView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -100),
             stackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             stackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            
-//            startButton.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -100),
-//            startButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-//            startButton.heightAnchor.constraint(equalToConstant: 50),
-//            startButton.widthAnchor.constraint(equalToConstant: 200),
-
         ])
     }
 }

@@ -7,29 +7,53 @@
 
 import Foundation
 
-protocol HomeViewControllerModelProtocol {
-    func timerAction(completion: @escaping () -> Void)
-}
-
-class HomeViewControllerModel: HomeViewControllerModelProtocol {
+class HomeViewControllerModel {
     
-   private let timer = Timer()
+    private var timer: Timer?
     
-    var duretionTimer = 150
+    var duretionTimer = 10
     
-    func timerAction(completion: @escaping () -> Void){
-        if duretionTimer > 0 {
-            duretionTimer -= 1
-            print(duretionTimer)
+    var timerUpdated: ((String) -> Void)?
+    var timerStarted: (() -> Void)?
+    var timerStopped:(() -> Void)?
+    var timerReset:(() -> Void)?
+    
+    func startTimer(){
+        stopTimer() 
+       let newTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            if duretionTimer > 0 {
+                self.duretionTimer -= 1
+                self.updateTimeLabel()
+            }
         }
+        timerStarted?()
+       RunLoop.current.add(newTimer, forMode: .common)
+       timer = newTimer
+        updateTimeLabel()
     }
     
-    func formatedTimer() {
+    func stopTimer() {
+        timer?.invalidate()
+        timerStopped?()
+    }
+    
+    func resetTimer(to initialValue: Int = 10) {
+        stopTimer()
+        duretionTimer = initialValue
+        timerReset?()
+        updateTimeLabel()
+    }
+    
+    private func updateTimeLabel() {
+        
         let date = Date(timeIntervalSince1970: TimeInterval(duretionTimer))
         let formatter = DateFormatter()
         formatter.dateFormat = "mm:ss"
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         let formattedTime = formatter.string(from: date)
-    }
+        timerUpdated?(formattedTime)
+            }
 }
+
 
