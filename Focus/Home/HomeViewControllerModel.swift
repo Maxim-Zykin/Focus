@@ -11,13 +11,13 @@ class HomeViewControllerModel {
     
     private var timer: Timer?
     
-    var duretionTimer = 10
+    var duretionTimer = 9
     
     var timerUpdated: ((String) -> Void)?
     var timerStarted: (() -> Void)?
     var timerStopped:(() -> Void)?
     var timerReset:(() -> Void)?
-    
+
     func startTimer(){
         stopTimer() 
        let newTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
@@ -38,7 +38,7 @@ class HomeViewControllerModel {
         timerStopped?()
     }
     
-    func resetTimer(to initialValue: Int = 10) {
+    func resetTimer(to initialValue: Int = 900) {
         stopTimer()
         duretionTimer = initialValue
         timerReset?()

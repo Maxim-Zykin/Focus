@@ -14,6 +14,8 @@ class HomeViewController: UIViewController {
     
     var seconds = ""
     
+    var isActive: Bool = false
+    
     private let shape = CAShapeLayer()
     
     private var timer: Timer?
@@ -71,6 +73,15 @@ class HomeViewController: UIViewController {
     @objc func startButtonTapped() {
         animationCircle()
         homeControllerModel.startTimer()
+        if isActive {
+            startButton.setTitle(Resouces.Text.Label.start, for: .normal)
+            startButton.backgroundColor = Resouces.Color.button
+            isActive = false
+        } else {
+            startButton.setTitle(Resouces.Text.Label.stop, for: .normal)
+            startButton.backgroundColor = Resouces.Color.pause
+            isActive = true
+        }
     }
     
     @objc private func resetButtonTapped() {
@@ -123,6 +134,8 @@ class HomeViewController: UIViewController {
     }
     
     private func setupUI() {
+        
+
         
         let stackView = UIStackView(arrangedSubviews: [resetButton, startButton])
         stackView.axis = .horizontal
