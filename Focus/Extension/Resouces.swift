@@ -14,7 +14,8 @@ enum Resouces {
     enum Color {
         static let background = UIColor(hexString: "#121424")
         static let button = UIColor(hexString: "#49B655")
-        static let reset = UIColor(hexString: "#ffb841")
+        static let reset = UIColor(hexString: "#ff033e")
+        static let pause = UIColor(hexString: "#ffb841")
         static let titleColor = UIColor(hexString: "#FFFFFF")
         static let separator = UIColor(hexString: "#E8ECEF")
         static let active = UIColor(hexString: "#437BFE")
@@ -25,6 +26,7 @@ enum Resouces {
         enum Label {
             static let session = Bundle.main.localizedString(forKey: "сессия", value: "", table: localizable)
             static let start = Bundle.main.localizedString(forKey: "старт", value: "", table: localizable)
+            static let stop = Bundle.main.localizedString(forKey: "стоп", value: "", table: localizable)
             static let reset = Bundle.main.localizedString(forKey: "перезапустить", value: "", table: localizable)
         }
     }
