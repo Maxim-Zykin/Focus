@@ -108,6 +108,7 @@ class HomeViewController: UIViewController {
         shape.strokeColor = Resouces.Color.active.cgColor
         shape.fillColor = UIColor.clear.cgColor
         shape.strokeEnd = 0
+        shape.lineCap = .round
         view.layer.addSublayer(shape)
     }
     
@@ -130,13 +131,11 @@ class HomeViewController: UIViewController {
     private func setupViewModel() {
         homeControllerModel.timerUpdated = { [weak self] timeString in
             self?.timerLabel.text = timeString
+            print(timeString)
         }
     }
     
     private func setupUI() {
-        
-
-        
         let stackView = UIStackView(arrangedSubviews: [resetButton, startButton])
         stackView.axis = .horizontal
         stackView.spacing = 30

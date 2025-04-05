@@ -11,21 +11,34 @@ class HomeViewControllerModel {
     
     private var timer: Timer?
     
-    var duretionTimer = 9
+    var duretionTimer = 2 * 6
+    var breakDuretion = 5 * 5
+    
+    private var workDuration: Int = 2 * 6 // 20 минут в секундах
+    private var shortBreakDuration: Int = 5 * 6 // 5 минут
+    private var longBreakDuration: Int = 15 * 60 // 15 минут
+    private var quantity = 4
     
     var timerUpdated: ((String) -> Void)?
     var timerStarted: (() -> Void)?
     var timerStopped:(() -> Void)?
     var timerReset:(() -> Void)?
+    var updatedAnimation:(() -> Void)?
 
     func startTimer(){
         stopTimer() 
        let newTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             guard let self = self else { return }
-            if duretionTimer > 0 {
-                self.duretionTimer -= 1
-                self.updateTimeLabel()
-            }
+        
+               if workDuration > 0 {
+                   workDuration -= 1
+                   duretionTimer = workDuration
+                   updateTimeLabel()
+               } else if workDuration == 0 {
+                   shortBreakDuration -= 1
+                   duretionTimer = shortBreakDuration
+                   updateTimeLabel()
+               }
         }
         timerStarted?()
        RunLoop.current.add(newTimer, forMode: .common)
@@ -33,20 +46,24 @@ class HomeViewControllerModel {
         updateTimeLabel()
     }
     
+    func newCycle() {
+        duretionTimer = workDuration
+    }
+    
     func stopTimer() {
         timer?.invalidate()
+        timer = nil
         timerStopped?()
     }
     
-    func resetTimer(to initialValue: Int = 900) {
+    func resetTimer(to initialValue: Int = 2 * 6) {
+        timer = nil
         stopTimer()
         duretionTimer = initialValue
-        timerReset?()
         updateTimeLabel()
     }
     
     private func updateTimeLabel() {
-        
         let date = Date(timeIntervalSince1970: TimeInterval(duretionTimer))
         let formatter = DateFormatter()
         formatter.dateFormat = "mm:ss"
