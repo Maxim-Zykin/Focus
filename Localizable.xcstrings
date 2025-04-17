@@ -1,6 +1,23 @@
 {
   "sourceLanguage" : "ru",
   "strings" : {
+    "пауза" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pause"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пауза"
+          }
+        }
+      }
+    },
     "перезапустить" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -48,23 +65,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Старт"
-          }
-        }
-      }
-    },
-    "стоп" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stop"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cтоп"
           }
         }
       }

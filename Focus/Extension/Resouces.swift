@@ -26,7 +26,7 @@ enum Resouces {
         enum Label {
             static let session = Bundle.main.localizedString(forKey: "сессия", value: "", table: localizable)
             static let start = Bundle.main.localizedString(forKey: "старт", value: "", table: localizable)
-            static let stop = Bundle.main.localizedString(forKey: "стоп", value: "", table: localizable)
+            static let pause = Bundle.main.localizedString(forKey: "пауза", value: "", table: localizable)
             static let reset = Bundle.main.localizedString(forKey: "перезапустить", value: "", table: localizable)
         }
     }

@@ -71,20 +71,38 @@ class HomeViewController: UIViewController {
     }
     
     @objc func startButtonTapped() {
-        animationCircle()
         homeControllerModel.startTimer()
         if isActive {
             startButton.setTitle(Resouces.Text.Label.start, for: .normal)
             startButton.backgroundColor = Resouces.Color.button
             isActive = false
+            homeControllerModel.stopTimer()
+            pauseCircleAnimation()
         } else {
-            startButton.setTitle(Resouces.Text.Label.stop, for: .normal)
+            animationCircle()
+            startButton.setTitle(Resouces.Text.Label.pause, for: .normal)
             startButton.backgroundColor = Resouces.Color.pause
             isActive = true
         }
     }
     
+//    @objc func startButtonTapped() {
+//        animationCircle()
+//        homeControllerModel.startTimer()
+//        if isActive {
+//            startButton.setTitle(Resouces.Text.Label.start, for: .normal)
+//            startButton.backgroundColor = Resouces.Color.button
+//            isActive = false
+//        } else {
+//            homeControllerModel.stopTimer()
+//            startButton.setTitle(Resouces.Text.Label.pause, for: .normal)
+//            startButton.backgroundColor = Resouces.Color.pause
+//            isActive = true
+//        }
+//    }
+    
     @objc private func resetButtonTapped() {
+        homeControllerModel.stopTimer()
         homeControllerModel.resetTimer()
         resetCircleAnimation()
     }
@@ -124,8 +142,14 @@ class HomeViewController: UIViewController {
     }
     
     private func resetCircleAnimation() {
+       // homeControllerModel.stopTimer()
+        homeControllerModel.resetTimer()
         shape.removeAllAnimations()
         shape.strokeEnd = 0
+    }
+    
+    private func pauseCircleAnimation() {
+        shape.strokeEnd = 0.3
     }
     
     private func setupViewModel() {

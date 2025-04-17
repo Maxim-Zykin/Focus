@@ -24,6 +24,13 @@ class HomeViewControllerModel {
     var timerStopped:(() -> Void)?
     var timerReset:(() -> Void)?
     var updatedAnimation:(() -> Void)?
+    var onTimeUpdated: ((String) -> Void)?
+    
+    var timeRemaining: TimeInterval = 0 {
+        didSet {
+            onTimeUpdated?(formattedTime())
+        }
+    }
 
     func startTimer(){
         stopTimer() 
@@ -54,6 +61,7 @@ class HomeViewControllerModel {
         timer?.invalidate()
         timer = nil
         timerStopped?()
+        duretionTimer = workDuration
     }
     
     func resetTimer(to initialValue: Int = 2 * 6) {
@@ -71,6 +79,12 @@ class HomeViewControllerModel {
         let formattedTime = formatter.string(from: date)
         timerUpdated?(formattedTime)
             }
+    
+    func formattedTime() -> String {
+        let minutes = Int(timeRemaining) / 60
+        let seconds = Int(timeRemaining) % 60
+        return String(format: "%02d:%02d", minutes, seconds)
+    }
 }
 
 
