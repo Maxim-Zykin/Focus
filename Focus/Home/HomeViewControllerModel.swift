@@ -102,16 +102,6 @@ class HomeViewControllerModel {
     }
     
     func pauseTimer() {
-//        timer?.invalidate()
-//        timer = nil
-//        let previousState = currentState
-//        currentState = .paused
-//        timerStopped?()
-//        stateChanged?(.paused)
-//        DispatchQueue.main.async {
-//            self.currentState = previousState
-//        }
-        
         guard currentState != .paused else {
             return
         }
