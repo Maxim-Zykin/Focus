@@ -28,6 +28,9 @@ enum Resouces {
             static let start = Bundle.main.localizedString(forKey: "старт", value: "", table: localizable)
             static let pause = Bundle.main.localizedString(forKey: "пауза", value: "", table: localizable)
             static let reset = Bundle.main.localizedString(forKey: "перезапустить", value: "", table: localizable)
+            static let work = Bundle.main.localizedString(forKey: "работа", value: "", table: localizable)
+            static let shortBreak = Bundle.main.localizedString(forKey: "короткий перерыв", value: "", table: localizable)
+            static let longBreak = Bundle.main.localizedString(forKey: "длинный перерыв", value: "", table: localizable)
         }
     }
     

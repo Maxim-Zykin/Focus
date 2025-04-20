@@ -1,6 +1,40 @@
 {
   "sourceLanguage" : "ru",
   "strings" : {
+    "длинный перерыв" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Long Break"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Длинный перерыв"
+          }
+        }
+      }
+    },
+    "короткий перерыв" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Short Break"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Короткий перерыв"
+          }
+        }
+      }
+    },
     "пауза" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -31,6 +65,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Сброс"
+          }
+        }
+      }
+    },
+    "работа" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Work"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Работа"
           }
         }
       }
