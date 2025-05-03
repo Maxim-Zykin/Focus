@@ -14,7 +14,7 @@ struct PomodoroSettings {
     var pomodorosBeforeLongBreak: Int
     
     static let `default` = PomodoroSettings(
-        workDuration: 25, 
+        workDuration: 25,
         shortBreakDuration: 5,
         longBreakDuration: 15,
         pomodorosBeforeLongBreak: 4
@@ -85,7 +85,7 @@ class HomeViewControllerModel {
         
         if currentState == .paused {
             // Продолжаем с того же места
-           //currentState = getNextState()
+           currentState = getNextState()
             currentState = pausedState
         } else {
             // Начинаем новый цикл
@@ -138,7 +138,6 @@ class HomeViewControllerModel {
     
     private func tick() {
         timeRemaining -= 1
-        
         if timeRemaining <= 0 {
             transitionToNextState()
         }
@@ -148,14 +147,16 @@ class HomeViewControllerModel {
         switch currentState {
         case .work:
             cyclesCompleted += 1
+            print(cyclesCompleted)
             currentState = shouldTakeLongBreak() ? .longBreak : .shortBreak
             pomodorosUpdated?(pomodorosCompleted)
-        case .shortBreak, .longBreak:
+        case .shortBreak:
             currentState = .work
+        case .longBreak:
+            resetTimer()
         case .paused:
             break
         }
-        
         resetTimerForCurrentState()
         stateChanged?(currentState)
     }
@@ -164,21 +165,18 @@ class HomeViewControllerModel {
         switch currentState {
         case .work:
             timeRemaining = workDuration
+            print("Work")
         case .shortBreak:
             timeRemaining = shortBreakDuration
+            print("Short")
         case .longBreak:
             timeRemaining = longBreakDuration
+            print("Long")
         case .paused:
             break
         }
     }
     
-    private func startNewTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true, block: { [weak self] _ in
-            self?.tick()
-        })
-        RunLoop.current.add(timer!, forMode: .common)
-    }
     
     private func shouldTakeLongBreak() -> Bool {
         return cyclesCompleted % settings.pomodorosBeforeLongBreak == 0
