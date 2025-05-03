@@ -33,6 +33,9 @@ class HomeViewControllerModel {
     }
     
     private var pausedState: TimerState = .work
+    private var startServerTime: Date?
+    private var totalPausedTime: TimeInterval = 0
+    private var lastPausedTime: Date?
     
     // Текущее состояние
     enum TimerState {
@@ -81,6 +84,22 @@ class HomeViewControllerModel {
     // MARK: - Public Methods
     
     func startTimer() {
+        TimeSyncService.shared.syncTime { [weak self] success in
+            guard let self = self else { return }
+            DispatchQueue.main.async {
+                if success {
+                    self.startServerTime = TimeSyncService.shared.currentServerTime()
+                    self.totalPausedTime = 0
+                    self.setupLocalTimer()
+                } else {
+                    self.startServerTime = Date()
+                    self.setupLocalTimer()
+                }
+            }
+        }
+    }
+    
+    private func setupLocalTimer() {
         guard timer == nil else { return }
         
         if currentState == .paused {
@@ -102,6 +121,7 @@ class HomeViewControllerModel {
     }
     
     func pauseTimer() {
+        lastPausedTime = TimeSyncService.shared.currentServerTime()
         guard currentState != .paused else {
             return
         }
@@ -111,6 +131,21 @@ class HomeViewControllerModel {
         currentState = .paused
         timerStopped?()
         stateChanged?(.paused)
+    }
+    
+    func resumeTimer() {
+        if let pauseTime = lastPausedTime {
+            let now = TimeSyncService.shared.currentServerTime()
+            totalPausedTime += now.timeIntervalSince(pauseTime)
+            lastPausedTime = nil
+        }
+        setupLocalTimer()
+    }
+    
+    func currentElapsedTime() -> TimeInterval {
+        guard let start = startServerTime else { return 0 }
+        let now = TimeSyncService.shared.currentServerTime()
+        return now.timeIntervalSince(start) - totalPausedTime
     }
     
     func stopTimer() {
@@ -126,6 +161,14 @@ class HomeViewControllerModel {
         timerReset?()
         stateChanged?(currentState)
         pomodorosUpdated?(0)
+    }
+    
+    func updateTimeAfterBackground() {
+        // Принудительно обновляем время
+        TimeSyncService.shared.syncTime { [weak self] _ in
+            self?.updateDisplay()
+            print("hard updateDisplay")
+        }
     }
     
     // MARK: - Private Methods

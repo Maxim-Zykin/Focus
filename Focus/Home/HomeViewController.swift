@@ -88,6 +88,12 @@ class HomeViewController: UIViewController {
         setupActions()
         bindModel()
         setupPomodoroCircles()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appWillEnterForeground),
+            name: UIApplication.willEnterForegroundNotification,
+            object: nil
+        )
     }
     
     // MARK: - Setup
@@ -199,6 +205,13 @@ class HomeViewController: UIViewController {
     
     @objc private func resetButtonTapped() {
         model.resetTimer()
+    }
+    
+    @objc private func appWillEnterForeground() {
+        // При возврате в приложение синхронизируем время
+        TimeSyncService.shared.syncTime { [weak self] success in
+            self?.model.updateTimeAfterBackground()
+        }
     }
     
     // MARK: - UI Updates
