@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UserNotifications
 
 struct PomodoroSettings {
     var workDuration: TimeInterval // в минутах
@@ -14,8 +15,8 @@ struct PomodoroSettings {
     var pomodorosBeforeLongBreak: Int
     
     static let `default` = PomodoroSettings(
-        workDuration: 25,
-        shortBreakDuration: 5,
+        workDuration: 1,
+        shortBreakDuration: 1,
         longBreakDuration: 15,
         pomodorosBeforeLongBreak: 4
     )
@@ -36,6 +37,11 @@ class HomeViewControllerModel {
     private var startServerTime: Date?
     private var totalPausedTime: TimeInterval = 0
     private var lastPausedTime: Date?
+    private var lastSyncSuccess: Bool = false
+    private var lastSyncTime: Date?
+    private let syncTimeInterval: TimeInterval = 3600 // Синхронизировать каждые 60 минут
+    private let maxCacheTime: TimeInterval = 3600
+    private var notificationIdentifier: String?
     
     // Текущее состояние
     enum TimerState {
@@ -73,33 +79,68 @@ class HomeViewControllerModel {
     var stateChanged: ((TimerState) -> Void)?
     var progressUpdated: ((CGFloat) -> Void)?
     var pomodorosUpdated: ((Int) -> Void)?
+    var timerCompleted: (() -> Void)?
     
     // MARK: - Initialization
     
     init() {
         updateDurationsFromSettings()
         timeRemaining = workDuration
+       // scheduleCompletionNotification()
+        cancelPendingNotifiction()
     }
     
     // MARK: - Public Methods
     
-    func startTimer() {
-        TimeSyncService.shared.syncTime { [weak self] success in
-            guard let self = self else { return }
-            DispatchQueue.main.async {
-                if success {
-                    self.startServerTime = TimeSyncService.shared.currentServerTime()
-                    self.totalPausedTime = 0
-                    self.setupLocalTimer()
-                } else {
-                    self.startServerTime = Date()
-                    self.setupLocalTimer()
-                }
+    func requestNotificationPermissions() {
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert, .sound]) { granted, error in
+            if let error = error {
+                print("Ошибка запроса разрешения на уведомления: \(error.localizedDescription)")
+            } else if !granted {
+                print("Пользователь отклонил уведомления")
+            }
+        }
+    }
+
+    
+     func scheduleCompletionNotification() {
+        cancelPendingNotifiction()
+        let content = UNMutableNotificationContent()
+        content.title = "Focus"
+        switch currentState {
+        case .work:
+            content.body = Resouces.Text.Label.notificationBody
+        case .shortBreak:
+            content.body = "Короткий перерыв окончен. Время работать"
+        case .longBreak:
+            content.body = "Длинный перерыв окончен"
+        case .paused:
+            return
+        }
+        
+        content.sound = .default
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(timeRemaining), repeats: false)
+        
+        notificationIdentifier = UUID().uuidString
+        
+        let request = UNNotificationRequest(identifier: notificationIdentifier!, content: content, trigger: trigger)
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Ошибка планирования уведомления")
             }
         }
     }
     
-    private func setupLocalTimer() {
+    private func cancelPendingNotifiction() {
+        guard let notificationIdentifier = notificationIdentifier else { return }
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [notificationIdentifier])
+    }
+    
+    func startTimer() {
+        //cancelPendingNotifiction()
         guard timer == nil else { return }
         
         if currentState == .paused {
@@ -109,7 +150,6 @@ class HomeViewControllerModel {
         } else {
             // Начинаем новый цикл
             resetTimerForCurrentState()
-            
         }
         
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
@@ -118,6 +158,7 @@ class HomeViewControllerModel {
         RunLoop.current.add(timer!, forMode: .common)
         timerStarted?()
         stateChanged?(currentState)
+        scheduleCompletionNotification()
     }
     
     func pauseTimer() {
@@ -131,6 +172,7 @@ class HomeViewControllerModel {
         currentState = .paused
         timerStopped?()
         stateChanged?(.paused)
+        cancelPendingNotifiction()
     }
     
     func resumeTimer() {
@@ -139,7 +181,7 @@ class HomeViewControllerModel {
             totalPausedTime += now.timeIntervalSince(pauseTime)
             lastPausedTime = nil
         }
-        setupLocalTimer()
+        startTimer()
     }
     
     func currentElapsedTime() -> TimeInterval {
@@ -161,6 +203,7 @@ class HomeViewControllerModel {
         timerReset?()
         stateChanged?(currentState)
         pomodorosUpdated?(0)
+        cancelPendingNotifiction()
     }
     
     func updateTimeAfterBackground() {
@@ -187,21 +230,23 @@ class HomeViewControllerModel {
     }
     
     private func transitionToNextState() {
+        print("Переход к следующему состоянию")
         switch currentState {
         case .work:
             cyclesCompleted += 1
-            print(cyclesCompleted)
             currentState = shouldTakeLongBreak() ? .longBreak : .shortBreak
             pomodorosUpdated?(pomodorosCompleted)
         case .shortBreak:
             currentState = .work
         case .longBreak:
             resetTimer()
+            return
         case .paused:
-            break
+            return
         }
         resetTimerForCurrentState()
         stateChanged?(currentState)
+        startTimer()
     }
     
     private func resetTimerForCurrentState() {

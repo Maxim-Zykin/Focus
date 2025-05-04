@@ -88,12 +88,7 @@ class HomeViewController: UIViewController {
         setupActions()
         bindModel()
         setupPomodoroCircles()
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(appWillEnterForeground),
-            name: UIApplication.willEnterForegroundNotification,
-            object: nil
-        )
+        model.requestNotificationPermissions()
     }
     
     // MARK: - Setup
@@ -197,6 +192,11 @@ class HomeViewController: UIViewController {
     // MARK: - Actions
     @objc private func startButtonTapped() {
         model.startTimer()
+//        model.startTimer { [weak self] error in
+//            if let error = error {
+//                print("error")
+//            }
+//        }
     }
     
     @objc private func pauseButtonTapped() {

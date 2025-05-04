@@ -31,6 +31,7 @@ enum Resouces {
             static let work = Bundle.main.localizedString(forKey: "работа", value: "", table: localizable)
             static let shortBreak = Bundle.main.localizedString(forKey: "короткий перерыв", value: "", table: localizable)
             static let longBreak = Bundle.main.localizedString(forKey: "длинный перерыв", value: "", table: localizable)
+            static let notificationBody = Bundle.main.localizedString(forKey: "Время вышло ⏰", value: "", table: localizable)
         }
     }
     
