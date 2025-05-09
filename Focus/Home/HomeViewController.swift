@@ -195,9 +195,14 @@ class HomeViewController: UIViewController {
     
     // MARK: - Actions
     @objc private func startButtonTapped() {
-        model.startTimer()
-        model.schedulePomodoroSessionNotifications()
+        if model.currentState == .paused {
+            model.resumeTimer() // только одно уведомление на оставшееся время
+        } else {
+            model.startTimer() // запускаем таймер и полную серию уведомлений
+            model.schedulePomodoroSessionNotifications()
+        }
     }
+
     
     @objc private func pauseButtonTapped() {
         model.pauseTimer()

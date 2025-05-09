@@ -44,8 +44,8 @@
             filePath = "Focus/Home/HomeViewControllerModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "186"
-            endingLineNumber = "186"
+            startingLineNumber = "253"
+            endingLineNumber = "253"
             landmarkName = "pauseTimer()"
             landmarkType = "7">
          </BreakpointContent>
@@ -60,8 +60,8 @@
             filePath = "Focus/Home/HomeViewControllerModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "162"
-            endingLineNumber = "162"
+            startingLineNumber = "229"
+            endingLineNumber = "229"
             landmarkName = "cancelPendingNotifiction()"
             landmarkType = "7">
          </BreakpointContent>

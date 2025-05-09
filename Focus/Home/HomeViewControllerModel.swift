@@ -15,8 +15,8 @@ struct PomodoroSettings {
     var pomodorosBeforeLongBreak: Int
     
     static let `default` = PomodoroSettings(
-        workDuration: 25,
-        shortBreakDuration: 5,
+        workDuration: 1,
+        shortBreakDuration: 1,
         longBreakDuration: 15,
         pomodorosBeforeLongBreak: 4
     )
@@ -51,7 +51,7 @@ class HomeViewControllerModel {
         case paused
     }
     
-    private(set) var currentState: TimerState = .work
+     var currentState: TimerState = .work
      var cyclesCompleted: Int = 0 {
         didSet {
             pomodorosCompleted = cyclesCompleted % settings.pomodorosBeforeLongBreak
@@ -103,7 +103,6 @@ class HomeViewControllerModel {
         }
     }
 
-
     func schedulePomodoroSessionNotifications() {
         let center = UNUserNotificationCenter.current()
 
@@ -151,16 +150,84 @@ class HomeViewControllerModel {
             }
         }
     }
+    
+    func scheduleRemainingNotifications() {
+        let center = UNUserNotificationCenter.current()
+        
+        center.getNotificationSettings { settingsInfo in
+            guard settingsInfo.authorizationStatus == .authorized else {
+                print("Нет разрешения на уведомления")
+                return
+            }
+            
+            center.removeAllPendingNotificationRequests()
+
+            var currentTime: TimeInterval = TimeInterval(self.timeRemaining)
+            var currentCycle = self.cyclesCompleted
+            var state = self.currentState
+            
+            while currentCycle < self.settings.pomodorosBeforeLongBreak {
+                switch state {
+                case .work:
+                    // Завершение работы
+                    let workContent = UNMutableNotificationContent()
+                    workContent.title = "Сессия завершена!"
+                    workContent.body = "Сделай короткий перерыв."
+                    workContent.sound = .default
+
+                    let workTrigger = UNTimeIntervalNotificationTrigger(timeInterval: currentTime, repeats: false)
+                    let workRequest = UNNotificationRequest(identifier: "work_session_\(currentCycle+1)", content: workContent, trigger: workTrigger)
+                    center.add(workRequest)
+
+                    currentTime += self.settings.shortBreakDuration * 60
+                    state = .shortBreak
+
+                case .shortBreak:
+                    // Завершение короткого перерыва
+                    let breakContent = UNMutableNotificationContent()
+                    breakContent.title = "Перерыв завершён"
+                    breakContent.body = "Пора работать!"
+                    breakContent.sound = .default
+
+                    let breakTrigger = UNTimeIntervalNotificationTrigger(timeInterval: currentTime, repeats: false)
+                    let breakRequest = UNNotificationRequest(identifier: "break_\(currentCycle+1)", content: breakContent, trigger: breakTrigger)
+                    center.add(breakRequest)
+
+                    currentCycle += 1
+                    currentTime += self.settings.workDuration * 60
+                    state = .work
+                case .longBreak:
+                    break // пропускаем, он будет в конце
+
+                case .paused:
+                    break
+                }
+            }
+            
+            // длинный перерыв после всех циклов
+            let longBreakContent = UNMutableNotificationContent()
+            longBreakContent.title = "Поздравляем!"
+            longBreakContent.body = "Ты завершил все \(self.settings.pomodorosBeforeLongBreak) сессий. Сделай длинный перерыв!"
+            longBreakContent.sound = .default
+            
+            let longBreakTrigger = UNTimeIntervalNotificationTrigger(timeInterval: currentTime, repeats: false)
+            let longBreakRequest = UNNotificationRequest(identifier: "long_break_final", content: longBreakContent, trigger: longBreakTrigger)
+            center.add(longBreakRequest)
+        }
+    }
+
+
 
     func cancelAllNotifications() {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+        print("Все уведомления удалены")
     }
     
     private func cancelPendingNotifiction() {
         guard let notificationIdentifier = notificationIdentifier else { return }
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [notificationIdentifier])
     }
-    
+
     func startTimer() {
         //cancelPendingNotifiction()
         guard timer == nil else { return }
@@ -184,27 +251,32 @@ class HomeViewControllerModel {
     }
     
     func pauseTimer() {
-        lastPausedTime = TimeSyncService.shared.currentServerTime()
-        guard currentState != .paused else {
-            return
-        }
+        guard currentState != .paused else { return }
         pausedState = currentState
         timer?.invalidate()
         timer = nil
         currentState = .paused
         timerStopped?()
         stateChanged?(.paused)
-        cancelPendingNotifiction()
+        cancelAllNotifications()
+        print("Таймер на паузе, уведомления удалены")
     }
+
+    
+//    func resumeTimer() {
+//        if let pauseTime = lastPausedTime {
+//            let now = TimeSyncService.shared.currentServerTime()
+//            totalPausedTime += now.timeIntervalSince(pauseTime)
+//            lastPausedTime = nil
+//        }
+//        startTimer()
+//    }
     
     func resumeTimer() {
-        if let pauseTime = lastPausedTime {
-            let now = TimeSyncService.shared.currentServerTime()
-            totalPausedTime += now.timeIntervalSince(pauseTime)
-            lastPausedTime = nil
-        }
-        startTimer()
+        startTimer() // твой метод, который запускает таймер
+        scheduleRemainingNotifications()
     }
+
     
     func currentElapsedTime() -> TimeInterval {
         guard let start = startServerTime else { return 0 }
@@ -218,6 +290,7 @@ class HomeViewControllerModel {
     }
     
     func resetTimer() {
+        cancelPendingNotifiction()
         stopTimer()
         currentState = .work
         cyclesCompleted = 0
@@ -225,7 +298,6 @@ class HomeViewControllerModel {
         timerReset?()
         stateChanged?(currentState)
         pomodorosUpdated?(0)
-        cancelPendingNotifiction()
     }
     
     func updateTimeAfterBackground() {
