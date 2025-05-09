@@ -196,15 +196,7 @@ class HomeViewController: UIViewController {
     // MARK: - Actions
     @objc private func startButtonTapped() {
         model.startTimer()
-        //model.scheduleFullPomodoroSessionNotifications()
-
         model.schedulePomodoroSessionNotifications()
-
-//        model.startTimer { [weak self] error in
-//            if let error = error {
-//                print("error")
-//            }
-//        }
     }
     
     @objc private func pauseButtonTapped() {

@@ -152,82 +152,9 @@ class HomeViewControllerModel {
         }
     }
 
-
-    
-    // рабочий варант
-//    func scheduleFullPomodoroSessionNotifications() {
-//        let center = UNUserNotificationCenter.current()
-//
-//        // Проверка на разрешение
-//        center.getNotificationSettings { settings in
-//            guard settings.authorizationStatus == .authorized else {
-//                print("Нет разрешения на уведомления")
-//                return
-//            }
-//
-//            // Очищаем все старые уведомления перед новой серией
-//            center.removeAllPendingNotificationRequests()
-//
-//            // Создаём уведомления
-//            let intervals: [TimeInterval] = [60, 120, 2700] // 25мин, 30мин, 45мин (в секундах)
-//            let titles = ["Помодоро завершён!", "Перерыв завершён!", "Сессия завершена!"]
-//            let bodies = ["Сделай паузу!", "Пора работать!", "Отличная работа, сделай длинный перерыв!"]
-//
-//            for i in 0..<intervals.count {
-//                let content = UNMutableNotificationContent()
-//                content.title = titles[i]
-//                content.body = bodies[i]
-//                content.sound = .default
-//
-//                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: intervals[i], repeats: false)
-//                let request = UNNotificationRequest(identifier: "notification_\(i)", content: content, trigger: trigger)
-//
-//                center.add(request) { error in
-//                    if let error = error {
-//                        print("Ошибка добавления уведомления: \(error.localizedDescription)")
-//                    } else {
-//                        print("Уведомление \(i+1) добавлено")
-//                    }
-//                }
-//            }
-//        }
-//    }
-
-
     func cancelAllNotifications() {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
     }
- // норм вариант
-    
-//     func scheduleCompletionNotification() {
-//        cancelPendingNotifiction()
-//        let content = UNMutableNotificationContent()
-//        content.title = "Focus"
-//        switch currentState {
-//        case .work:
-//            content.body = Resouces.Text.Label.notificationBody
-//        case .shortBreak:
-//            content.body = "Короткий перерыв окончен. Время работать"
-//        case .longBreak:
-//            content.body = "Длинный перерыв окончен"
-//        case .paused:
-//            return
-//        }
-//        
-//        content.sound = .default
-//        
-//        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(timeRemaining), repeats: false)
-//        
-//        notificationIdentifier = UUID().uuidString
-//        
-//        let request = UNNotificationRequest(identifier: notificationIdentifier!, content: content, trigger: trigger)
-//        
-//        UNUserNotificationCenter.current().add(request) { error in
-//            if let error = error {
-//                print("Ошибка планирования уведомления")
-//            }
-//        }
-//    }
     
     private func cancelPendingNotifiction() {
         guard let notificationIdentifier = notificationIdentifier else { return }
