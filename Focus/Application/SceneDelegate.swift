@@ -47,7 +47,11 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     func sceneDidEnterBackground(_ scene: UIScene) {
-        homeModel.scheduleCompletionNotification()
+        if let navC = window?.rootViewController as? UINavigationController,
+           let homeVC = navC.viewControllers.first as? HomeViewController {
+            //homeVC.modelInstance.scheduleFullPomodoroSessionNotifications()
+        }
+
     }
 
 

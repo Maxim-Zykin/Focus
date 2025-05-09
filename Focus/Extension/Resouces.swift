@@ -11,6 +11,13 @@ let localizable = "Localizable"
 
 enum Resouces {
     
+    enum Time {
+        static let work = 25 * 60           // 25 минут
+        static let shortBreak = 5 * 60      // 5 минут
+        static let longBreak = 15 * 60      // 15 минут
+        static let pomodoroPerSet = 4       // 4 помодоро до длинного перерыва
+    }
+    
     enum Color {
         static let background = UIColor(hexString: "#121424")
         static let button = UIColor(hexString: "#49B655")

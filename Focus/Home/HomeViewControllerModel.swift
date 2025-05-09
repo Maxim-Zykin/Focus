@@ -15,8 +15,8 @@ struct PomodoroSettings {
     var pomodorosBeforeLongBreak: Int
     
     static let `default` = PomodoroSettings(
-        workDuration: 1,
-        shortBreakDuration: 1,
+        workDuration: 25,
+        shortBreakDuration: 5,
         longBreakDuration: 15,
         pomodorosBeforeLongBreak: 4
     )
@@ -103,36 +103,131 @@ class HomeViewControllerModel {
         }
     }
 
-    
-     func scheduleCompletionNotification() {
-        cancelPendingNotifiction()
-        let content = UNMutableNotificationContent()
-        content.title = "Focus"
-        switch currentState {
-        case .work:
-            content.body = Resouces.Text.Label.notificationBody
-        case .shortBreak:
-            content.body = "Короткий перерыв окончен. Время работать"
-        case .longBreak:
-            content.body = "Длинный перерыв окончен"
-        case .paused:
-            return
-        }
-        
-        content.sound = .default
-        
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(timeRemaining), repeats: false)
-        
-        notificationIdentifier = UUID().uuidString
-        
-        let request = UNNotificationRequest(identifier: notificationIdentifier!, content: content, trigger: trigger)
-        
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("Ошибка планирования уведомления")
+
+    func schedulePomodoroSessionNotifications() {
+        let center = UNUserNotificationCenter.current()
+
+        center.getNotificationSettings { settingsInfo in
+            guard settingsInfo.authorizationStatus == .authorized else {
+                print("Нет разрешения на уведомления")
+                return
+            }
+
+            center.removeAllPendingNotificationRequests()
+
+            var currentTime: TimeInterval = 0
+
+            for session in 1...self.settings.pomodorosBeforeLongBreak {
+                // Помодоро сессия
+                currentTime += self.settings.workDuration * 60
+                let workContent = UNMutableNotificationContent()
+                workContent.title = "Сессия \(session) завершена!"
+                workContent.body = "Сделай короткий перерыв."
+                workContent.sound = .default
+
+                let workTrigger = UNTimeIntervalNotificationTrigger(timeInterval: currentTime, repeats: false)
+                let workRequest = UNNotificationRequest(identifier: "work_session_\(session)", content: workContent, trigger: workTrigger)
+                center.add(workRequest)
+
+                print("Добавлено уведомление о завершении сессии \(session) через \(currentTime) секунд.")
+
+                if session == self.settings.pomodorosBeforeLongBreak {
+                    // длинный перерыв после последней сессии
+                    currentTime += self.settings.longBreakDuration * 60
+                    let longBreakContent = UNMutableNotificationContent()
+                    longBreakContent.title = "Поздравляем!"
+                    longBreakContent.body = "Ты завершил все \(self.settings.pomodorosBeforeLongBreak) сессий. Сделай длинный перерыв!"
+                    longBreakContent.sound = .default
+
+                    let longBreakTrigger = UNTimeIntervalNotificationTrigger(timeInterval: currentTime, repeats: false)
+                    let longBreakRequest = UNNotificationRequest(identifier: "long_break", content: longBreakContent, trigger: longBreakTrigger)
+                    center.add(longBreakRequest)
+
+                    print("Добавлено уведомление о длинном перерыве через \(currentTime) секунд.")
+                } else {
+                    // короткий перерыв после каждой сессии кроме последней
+                    currentTime += self.settings.shortBreakDuration * 60
+                }
             }
         }
     }
+
+
+    
+    // рабочий варант
+//    func scheduleFullPomodoroSessionNotifications() {
+//        let center = UNUserNotificationCenter.current()
+//
+//        // Проверка на разрешение
+//        center.getNotificationSettings { settings in
+//            guard settings.authorizationStatus == .authorized else {
+//                print("Нет разрешения на уведомления")
+//                return
+//            }
+//
+//            // Очищаем все старые уведомления перед новой серией
+//            center.removeAllPendingNotificationRequests()
+//
+//            // Создаём уведомления
+//            let intervals: [TimeInterval] = [60, 120, 2700] // 25мин, 30мин, 45мин (в секундах)
+//            let titles = ["Помодоро завершён!", "Перерыв завершён!", "Сессия завершена!"]
+//            let bodies = ["Сделай паузу!", "Пора работать!", "Отличная работа, сделай длинный перерыв!"]
+//
+//            for i in 0..<intervals.count {
+//                let content = UNMutableNotificationContent()
+//                content.title = titles[i]
+//                content.body = bodies[i]
+//                content.sound = .default
+//
+//                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: intervals[i], repeats: false)
+//                let request = UNNotificationRequest(identifier: "notification_\(i)", content: content, trigger: trigger)
+//
+//                center.add(request) { error in
+//                    if let error = error {
+//                        print("Ошибка добавления уведомления: \(error.localizedDescription)")
+//                    } else {
+//                        print("Уведомление \(i+1) добавлено")
+//                    }
+//                }
+//            }
+//        }
+//    }
+
+
+    func cancelAllNotifications() {
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+    }
+ // норм вариант
+    
+//     func scheduleCompletionNotification() {
+//        cancelPendingNotifiction()
+//        let content = UNMutableNotificationContent()
+//        content.title = "Focus"
+//        switch currentState {
+//        case .work:
+//            content.body = Resouces.Text.Label.notificationBody
+//        case .shortBreak:
+//            content.body = "Короткий перерыв окончен. Время работать"
+//        case .longBreak:
+//            content.body = "Длинный перерыв окончен"
+//        case .paused:
+//            return
+//        }
+//        
+//        content.sound = .default
+//        
+//        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(timeRemaining), repeats: false)
+//        
+//        notificationIdentifier = UUID().uuidString
+//        
+//        let request = UNNotificationRequest(identifier: notificationIdentifier!, content: content, trigger: trigger)
+//        
+//        UNUserNotificationCenter.current().add(request) { error in
+//            if let error = error {
+//                print("Ошибка планирования уведомления")
+//            }
+//        }
+//    }
     
     private func cancelPendingNotifiction() {
         guard let notificationIdentifier = notificationIdentifier else { return }
@@ -158,7 +253,7 @@ class HomeViewControllerModel {
         RunLoop.current.add(timer!, forMode: .common)
         timerStarted?()
         stateChanged?(currentState)
-        scheduleCompletionNotification()
+        //scheduleCompletionNotification()
     }
     
     func pauseTimer() {

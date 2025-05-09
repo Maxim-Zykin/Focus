@@ -78,6 +78,10 @@ class HomeViewController: UIViewController {
     
     // MARK: - Properties
     private let model = HomeViewControllerModel()
+    var modelInstance: HomeViewControllerModel {
+        return model
+    }
+
     private var circleViews: [UIView] = []
     private let maxCircle = 4
     
@@ -192,6 +196,10 @@ class HomeViewController: UIViewController {
     // MARK: - Actions
     @objc private func startButtonTapped() {
         model.startTimer()
+        //model.scheduleFullPomodoroSessionNotifications()
+
+        model.schedulePomodoroSessionNotifications()
+
 //        model.startTimer { [weak self] error in
 //            if let error = error {
 //                print("error")
@@ -201,6 +209,8 @@ class HomeViewController: UIViewController {
     
     @objc private func pauseButtonTapped() {
         model.pauseTimer()
+        model.cancelAllNotifications()
+
     }
     
     @objc private func resetButtonTapped() {
