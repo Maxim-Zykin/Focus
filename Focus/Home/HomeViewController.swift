@@ -83,7 +83,7 @@ class HomeViewController: UIViewController {
     }
 
     private var circleViews: [UIView] = []
-    private let maxCircle = 4
+    private let maxCircle = PomodoroSettings.default.pomodorosBeforeLongBreak
     
     // MARK: - Lifecycle
     override func viewDidLoad() {
@@ -199,7 +199,7 @@ class HomeViewController: UIViewController {
             model.resumeTimer() // только одно уведомление на оставшееся время
         } else {
             model.startTimer() // запускаем таймер и полную серию уведомлений
-            model.schedulePomodoroSessionNotifications()
+            model.scheduleNotifications(from: 0, cyclesCompleted: 0, state: .work)
         }
     }
 

@@ -15,8 +15,8 @@ struct PomodoroSettings {
     var pomodorosBeforeLongBreak: Int
     
     static let `default` = PomodoroSettings(
-        workDuration: 1,
-        shortBreakDuration: 1,
+        workDuration: 25,
+        shortBreakDuration: 5,
         longBreakDuration: 15,
         pomodorosBeforeLongBreak: 4
     )
@@ -103,7 +103,7 @@ class HomeViewControllerModel {
         }
     }
 
-    func schedulePomodoroSessionNotifications() {
+    func scheduleNotifications(from timeRemaining: Int, cyclesCompleted: Int, state: TimerState) {
         let center = UNUserNotificationCenter.current()
 
         center.getNotificationSettings { settingsInfo in
@@ -114,65 +114,21 @@ class HomeViewControllerModel {
 
             center.removeAllPendingNotificationRequests()
 
-            var currentTime: TimeInterval = 0
-
-            for session in 1...self.settings.pomodorosBeforeLongBreak {
-                // Помодоро сессия
-                currentTime += self.settings.workDuration * 60
-                let workContent = UNMutableNotificationContent()
-                workContent.title = "Сессия \(session) завершена!"
-                workContent.body = "Сделай короткий перерыв."
-                workContent.sound = .default
-
-                let workTrigger = UNTimeIntervalNotificationTrigger(timeInterval: currentTime, repeats: false)
-                let workRequest = UNNotificationRequest(identifier: "work_session_\(session)", content: workContent, trigger: workTrigger)
-                center.add(workRequest)
-
-                print("Добавлено уведомление о завершении сессии \(session) через \(currentTime) секунд.")
-
-                if session == self.settings.pomodorosBeforeLongBreak {
-                    // длинный перерыв после последней сессии
-                    currentTime += self.settings.longBreakDuration * 60
-                    let longBreakContent = UNMutableNotificationContent()
-                    longBreakContent.title = "Поздравляем!"
-                    longBreakContent.body = "Ты завершил все \(self.settings.pomodorosBeforeLongBreak) сессий. Сделай длинный перерыв!"
-                    longBreakContent.sound = .default
-
-                    let longBreakTrigger = UNTimeIntervalNotificationTrigger(timeInterval: currentTime, repeats: false)
-                    let longBreakRequest = UNNotificationRequest(identifier: "long_break", content: longBreakContent, trigger: longBreakTrigger)
-                    center.add(longBreakRequest)
-
-                    print("Добавлено уведомление о длинном перерыве через \(currentTime) секунд.")
-                } else {
-                    // короткий перерыв после каждой сессии кроме последней
-                    currentTime += self.settings.shortBreakDuration * 60
-                }
-            }
-        }
-    }
-    
-    func scheduleRemainingNotifications() {
-        let center = UNUserNotificationCenter.current()
-        
-        center.getNotificationSettings { settingsInfo in
-            guard settingsInfo.authorizationStatus == .authorized else {
-                print("Нет разрешения на уведомления")
-                return
-            }
+            var currentTime: TimeInterval = TimeInterval(timeRemaining)
+            var currentCycle = cyclesCompleted
+            var currentState = state
             
-            center.removeAllPendingNotificationRequests()
+                    if currentTime == 0 && currentState == .work {
+                        currentTime += self.settings.workDuration * 60
+                    }
 
-            var currentTime: TimeInterval = TimeInterval(self.timeRemaining)
-            var currentCycle = self.cyclesCompleted
-            var state = self.currentState
-            
-            while currentCycle < self.settings.pomodorosBeforeLongBreak {
-                switch state {
+            while currentCycle < self.settings.pomodorosBeforeLongBreak - 1 {
+                switch currentState {
                 case .work:
                     // Завершение работы
                     let workContent = UNMutableNotificationContent()
-                    workContent.title = "Сессия завершена!"
-                    workContent.body = "Сделай короткий перерыв."
+                    workContent.title = Resouces.Text.Label.session + " " + "\(currentCycle+1)" + " " + Resouces.Text.Label.sessionIsCompleted
+                    workContent.body = Resouces.Text.Label.shortBreak
                     workContent.sound = .default
 
                     let workTrigger = UNTimeIntervalNotificationTrigger(timeInterval: currentTime, repeats: false)
@@ -180,13 +136,13 @@ class HomeViewControllerModel {
                     center.add(workRequest)
 
                     currentTime += self.settings.shortBreakDuration * 60
-                    state = .shortBreak
+                    currentState = .shortBreak
 
                 case .shortBreak:
                     // Завершение короткого перерыва
                     let breakContent = UNMutableNotificationContent()
-                    breakContent.title = "Перерыв завершён"
-                    breakContent.body = "Пора работать!"
+                    breakContent.title = Resouces.Text.Label.breakIsCompleted
+                    breakContent.body = Resouces.Text.Label.timeForWork
                     breakContent.sound = .default
 
                     let breakTrigger = UNTimeIntervalNotificationTrigger(timeInterval: currentTime, repeats: false)
@@ -195,28 +151,28 @@ class HomeViewControllerModel {
 
                     currentCycle += 1
                     currentTime += self.settings.workDuration * 60
-                    state = .work
-                case .longBreak:
-                    break // пропускаем, он будет в конце
+                    currentState = .work
 
+                case .longBreak:
+                    print("Длинный перерыв, уведомления больше не ставятся")
+                    return
+                    
                 case .paused:
-                    break
+                    return
                 }
             }
-            
+
             // длинный перерыв после всех циклов
             let longBreakContent = UNMutableNotificationContent()
             longBreakContent.title = "Поздравляем!"
             longBreakContent.body = "Ты завершил все \(self.settings.pomodorosBeforeLongBreak) сессий. Сделай длинный перерыв!"
             longBreakContent.sound = .default
-            
+
             let longBreakTrigger = UNTimeIntervalNotificationTrigger(timeInterval: currentTime, repeats: false)
             let longBreakRequest = UNNotificationRequest(identifier: "long_break_final", content: longBreakContent, trigger: longBreakTrigger)
             center.add(longBreakRequest)
         }
     }
-
-
 
     func cancelAllNotifications() {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
@@ -231,6 +187,10 @@ class HomeViewControllerModel {
     func startTimer() {
         //cancelPendingNotifiction()
         guard timer == nil else { return }
+        guard currentState != .longBreak else {
+            print("Длинный перерыв — уведомления не ставим")
+            return
+        }
         
         if currentState == .paused {
             // Продолжаем с того же места
@@ -273,8 +233,12 @@ class HomeViewControllerModel {
 //    }
     
     func resumeTimer() {
-        startTimer() // твой метод, который запускает таймер
-        scheduleRemainingNotifications()
+        guard currentState != .longBreak else {
+            print("Длинный перерыв — уведомления не ставим")
+            return
+        }
+        startTimer()
+        scheduleNotifications(from: self.timeRemaining, cyclesCompleted: self.cyclesCompleted, state: self.currentState)
     }
 
     
