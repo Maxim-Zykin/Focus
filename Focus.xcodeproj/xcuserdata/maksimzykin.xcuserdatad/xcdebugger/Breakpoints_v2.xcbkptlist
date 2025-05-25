@@ -28,8 +28,8 @@
             filePath = "Focus/Home/HomeViewControllerModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "51"
-            endingLineNumber = "51"
+            startingLineNumber = "53"
+            endingLineNumber = "53"
             landmarkName = "TimerState"
             landmarkType = "13">
          </BreakpointContent>
@@ -44,8 +44,8 @@
             filePath = "Focus/Home/HomeViewControllerModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "213"
-            endingLineNumber = "213"
+            startingLineNumber = "219"
+            endingLineNumber = "219"
             landmarkName = "pauseTimer()"
             landmarkType = "7">
          </BreakpointContent>
@@ -60,8 +60,8 @@
             filePath = "Focus/Home/HomeViewControllerModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "185"
-            endingLineNumber = "185"
+            startingLineNumber = "187"
+            endingLineNumber = "187"
             landmarkName = "cancelPendingNotifiction()"
             landmarkType = "7">
          </BreakpointContent>
@@ -76,8 +76,8 @@
             filePath = "Focus/Home/HomeViewControllerModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "132"
-            endingLineNumber = "132"
+            startingLineNumber = "134"
+            endingLineNumber = "134"
             landmarkName = "scheduleNotifications(from:cyclesCompleted:state:)"
             landmarkType = "7">
          </BreakpointContent>

@@ -42,6 +42,8 @@ class HomeViewControllerModel {
     private let syncTimeInterval: TimeInterval = 3600 // Синхронизировать каждые 60 минут
     private let maxCacheTime: TimeInterval = 3600
     private var notificationIdentifier: String?
+    private let endDateKey = "pomodoroEndDate"
+
     
     // Текущее состояние
     enum TimerState {
@@ -201,6 +203,10 @@ class HomeViewControllerModel {
             resetTimerForCurrentState()
         }
         
+        let endDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
+        UserDefaults.standard.set(endDate, forKey: endDateKey)
+
+        
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             self?.tick()
         }
@@ -219,27 +225,22 @@ class HomeViewControllerModel {
         timerStopped?()
         stateChanged?(.paused)
         cancelAllNotifications()
+        UserDefaults.standard.removeObject(forKey: endDateKey)
         print("Таймер на паузе, уведомления удалены")
     }
-
-    
-//    func resumeTimer() {
-//        if let pauseTime = lastPausedTime {
-//            let now = TimeSyncService.shared.currentServerTime()
-//            totalPausedTime += now.timeIntervalSince(pauseTime)
-//            lastPausedTime = nil
-//        }
-//        startTimer()
-//    }
     
     func resumeTimer() {
         guard currentState != .longBreak else {
             print("Длинный перерыв — уведомления не ставим")
             return
         }
+        if let remaining = getRemainingTimeFromSavedDate() {
+            timeRemaining = remaining
+        }
         startTimer()
-        scheduleNotifications(from: self.timeRemaining, cyclesCompleted: self.cyclesCompleted, state: self.currentState)
+        scheduleNotifications(from: timeRemaining, cyclesCompleted: cyclesCompleted, state: currentState)
     }
+
 
     
     func currentElapsedTime() -> TimeInterval {
@@ -262,6 +263,8 @@ class HomeViewControllerModel {
         timerReset?()
         stateChanged?(currentState)
         pomodorosUpdated?(0)
+        UserDefaults.standard.removeObject(forKey: endDateKey)
+
     }
     
     func updateTimeAfterBackground() {
@@ -273,6 +276,12 @@ class HomeViewControllerModel {
     }
     
     // MARK: - Private Methods
+    
+    private func getRemainingTimeFromSavedDate() -> Int? {
+        guard let endDate = UserDefaults.standard.object(forKey: endDateKey) as? Date else { return nil }
+        let remaining = Int(endDate.timeIntervalSinceNow)
+        return remaining > 0 ? remaining : 0
+    }
     
     private func updateDurationsFromSettings() {
         workDuration = Int(settings.workDuration * 60)
