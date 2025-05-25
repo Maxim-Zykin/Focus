@@ -193,7 +193,7 @@ class HomeViewControllerModel {
             print("Длинный перерыв — уведомления не ставим")
             return
         }
-        
+        recalculateTimeRemaining()
         if currentState == .paused {
             // Продолжаем с того же места
            currentState = getNextState()
@@ -229,18 +229,31 @@ class HomeViewControllerModel {
         print("Таймер на паузе, уведомления удалены")
     }
     
+//    func resumeTimer() {
+//        guard currentState != .longBreak else {
+//            print("Длинный перерыв — уведомления не ставим")
+//            return
+//        }
+//        if let remaining = getRemainingTimeFromSavedDate() {
+//            timeRemaining = remaining
+//        }
+//        startTimer()
+//        scheduleNotifications(from: timeRemaining, cyclesCompleted: cyclesCompleted, state: currentState)
+//    }
+
     func resumeTimer() {
         guard currentState != .longBreak else {
             print("Длинный перерыв — уведомления не ставим")
             return
         }
-        if let remaining = getRemainingTimeFromSavedDate() {
-            timeRemaining = remaining
+        recalculateTimeRemaining()
+        if timeRemaining <= 0 {
+            transitionToNextState()
+        } else {
+            startTimer()
+            scheduleNotifications(from: timeRemaining, cyclesCompleted: cyclesCompleted, state: currentState)
         }
-        startTimer()
-        scheduleNotifications(from: timeRemaining, cyclesCompleted: cyclesCompleted, state: currentState)
     }
-
 
     
     func currentElapsedTime() -> TimeInterval {
@@ -277,11 +290,18 @@ class HomeViewControllerModel {
     
     // MARK: - Private Methods
     
-    private func getRemainingTimeFromSavedDate() -> Int? {
-        guard let endDate = UserDefaults.standard.object(forKey: endDateKey) as? Date else { return nil }
+    func recalculateTimeRemaining() {
+        guard let endDate = UserDefaults.standard.object(forKey: endDateKey) as? Date else { return }
         let remaining = Int(endDate.timeIntervalSinceNow)
-        return remaining > 0 ? remaining : 0
+        timeRemaining = max(remaining, 0)
     }
+
+    
+//    private func getRemainingTimeFromSavedDate() -> Int? {
+//        guard let endDate = UserDefaults.standard.object(forKey: endDateKey) as? Date else { return nil }
+//        let remaining = Int(endDate.timeIntervalSinceNow)
+//        return remaining > 0 ? remaining : 0
+//    }
     
     private func updateDurationsFromSettings() {
         workDuration = Int(settings.workDuration * 60)
