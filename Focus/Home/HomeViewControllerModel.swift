@@ -129,7 +129,7 @@ class HomeViewControllerModel {
                     let workContent = UNMutableNotificationContent()
                     workContent.title = Resouces.Text.Label.session + " " + "\(currentCycle+1)" + " " + Resouces.Text.Label.sessionIsCompleted
                     workContent.body = Resouces.Text.Label.shortBreak
-                    workContent.sound = .default
+                    workContent.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: "Pomodoro.wav"))
 
                     let workTrigger = UNTimeIntervalNotificationTrigger(timeInterval: currentTime, repeats: false)
                     let workRequest = UNNotificationRequest(identifier: "work_session_\(currentCycle+1)", content: workContent, trigger: workTrigger)
@@ -143,7 +143,7 @@ class HomeViewControllerModel {
                     let breakContent = UNMutableNotificationContent()
                     breakContent.title = Resouces.Text.Label.breakIsCompleted
                     breakContent.body = Resouces.Text.Label.timeForWork
-                    breakContent.sound = .default
+                    breakContent.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: "Pomodoro.wav"))
 
                     let breakTrigger = UNTimeIntervalNotificationTrigger(timeInterval: currentTime, repeats: false)
                     let breakRequest = UNNotificationRequest(identifier: "break_\(currentCycle+1)", content: breakContent, trigger: breakTrigger)
