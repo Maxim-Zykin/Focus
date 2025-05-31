@@ -187,34 +187,41 @@ class HomeViewControllerModel {
     }
 
     func startTimer() {
-        //cancelPendingNotifiction()
         guard timer == nil else { return }
         guard currentState != .longBreak else {
             print("Длинный перерыв — уведомления не ставим")
             return
         }
-        recalculateTimeRemaining()
-        if currentState == .paused {
-            // Продолжаем с того же места
-           currentState = getNextState()
-            currentState = pausedState
-        } else {
-            // Начинаем новый цикл
-            resetTimerForCurrentState()
-        }
-        
-        let endDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
-        UserDefaults.standard.set(endDate, forKey: endDateKey)
 
-        
+        // если таймер на паузе, восстанавливаем состояние
+        if currentState == .paused {
+            currentState = pausedState
+        }
+
+        // Проверяем есть ли сохранённое время
+        if let endDate = UserDefaults.standard.object(forKey: endDateKey) as? Date {
+            let remaining = Int(endDate.timeIntervalSinceNow)
+            if remaining <= 0 {
+                transitionToNextState()
+                return
+            } else {
+                timeRemaining = remaining
+            }
+        } else {
+            // Если нет сохранённой даты — выставляем длительность состояния
+            resetTimerForCurrentState()
+            let endDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
+            UserDefaults.standard.set(endDate, forKey: endDateKey)
+        }
+
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             self?.tick()
         }
         RunLoop.current.add(timer!, forMode: .common)
         timerStarted?()
         stateChanged?(currentState)
-        //scheduleCompletionNotification()
     }
+
     
     func pauseTimer() {
         guard currentState != .paused else { return }
@@ -229,18 +236,6 @@ class HomeViewControllerModel {
         print("Таймер на паузе, уведомления удалены")
     }
     
-//    func resumeTimer() {
-//        guard currentState != .longBreak else {
-//            print("Длинный перерыв — уведомления не ставим")
-//            return
-//        }
-//        if let remaining = getRemainingTimeFromSavedDate() {
-//            timeRemaining = remaining
-//        }
-//        startTimer()
-//        scheduleNotifications(from: timeRemaining, cyclesCompleted: cyclesCompleted, state: currentState)
-//    }
-
     func resumeTimer() {
         guard currentState != .longBreak else {
             print("Длинный перерыв — уведомления не ставим")
