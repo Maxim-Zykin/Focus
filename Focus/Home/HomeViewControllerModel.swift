@@ -15,8 +15,8 @@ struct PomodoroSettings {
     var pomodorosBeforeLongBreak: Int
     
     static let `default` = PomodoroSettings(
-        workDuration: 25,
-        shortBreakDuration: 5,
+        workDuration: 0.3,
+        shortBreakDuration: 0.1,
         longBreakDuration: 15,
         pomodorosBeforeLongBreak: 4
     )
@@ -193,12 +193,11 @@ class HomeViewControllerModel {
             return
         }
 
-        // если таймер на паузе, восстанавливаем состояние
         if currentState == .paused {
-            currentState = pausedState
+            currentState = .work
         }
 
-        // Проверяем есть ли сохранённое время
+        // Проверяем есть ли сохранённая дата
         if let endDate = UserDefaults.standard.object(forKey: endDateKey) as? Date {
             let remaining = Int(endDate.timeIntervalSinceNow)
             if remaining <= 0 {
@@ -208,7 +207,6 @@ class HomeViewControllerModel {
                 timeRemaining = remaining
             }
         } else {
-            // Если нет сохранённой даты — выставляем длительность состояния
             resetTimerForCurrentState()
             let endDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
             UserDefaults.standard.set(endDate, forKey: endDateKey)
@@ -221,6 +219,7 @@ class HomeViewControllerModel {
         timerStarted?()
         stateChanged?(currentState)
     }
+
 
     
     func pauseTimer() {
@@ -241,7 +240,9 @@ class HomeViewControllerModel {
             print("Длинный перерыв — уведомления не ставим")
             return
         }
+
         recalculateTimeRemaining()
+        updateDisplay()
         if timeRemaining <= 0 {
             transitionToNextState()
         } else {
@@ -250,12 +251,14 @@ class HomeViewControllerModel {
         }
     }
 
+
+
     
-    func currentElapsedTime() -> TimeInterval {
-        guard let start = startServerTime else { return 0 }
-        let now = TimeSyncService.shared.currentServerTime()
-        return now.timeIntervalSince(start) - totalPausedTime
-    }
+//    func currentElapsedTime() -> TimeInterval {
+//        guard let start = startServerTime else { return 0 }
+//        let now = TimeSyncService.shared.currentServerTime()
+//        return now.timeIntervalSince(start) - totalPausedTime
+//    }
     
     func stopTimer() {
         timer?.invalidate()
@@ -265,16 +268,21 @@ class HomeViewControllerModel {
     func resetTimer() {
         cancelPendingNotifiction()
         stopTimer()
+        cancelAllNotifications()
+        UserDefaults.standard.removeObject(forKey: endDateKey)
+
         currentState = .work
         cyclesCompleted = 0
-        resetTimerForCurrentState()
+        timeRemaining = workDuration
         timerReset?()
         stateChanged?(currentState)
         pomodorosUpdated?(0)
-        UserDefaults.standard.removeObject(forKey: endDateKey)
-
+        
+        // Принудительно ставим прогресс на 0
+        progressUpdated?(1.0)
+        updateDisplay()
     }
-    
+
     func updateTimeAfterBackground() {
         // Принудительно обновляем время
         TimeSyncService.shared.syncTime { [weak self] _ in

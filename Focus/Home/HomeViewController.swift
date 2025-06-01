@@ -174,6 +174,15 @@ class HomeViewController: UIViewController {
         }
     }
     
+    private func resetPomodoroCircles() {
+        for circle in circleViews {
+            UIView.animate(withDuration: 0.3) {
+                circle.backgroundColor = .systemGray4
+            }
+        }
+    }
+
+    
     private func updatePomodoroCircles() {
         let completedPomodoros = model.cyclesCompleted % maxCircle
         
@@ -212,14 +221,15 @@ class HomeViewController: UIViewController {
     
     @objc private func resetButtonTapped() {
         model.resetTimer()
+        resetPomodoroCircles()
     }
     
-    @objc private func appWillEnterForeground() {
-        // При возврате в приложение синхронизируем время
-        TimeSyncService.shared.syncTime { [weak self] success in
-            self?.model.updateTimeAfterBackground()
-        }
-    }
+//    @objc private func appWillEnterForeground() {
+//        // При возврате в приложение синхронизируем время
+//        TimeSyncService.shared.syncTime { [weak self] success in
+//            self?.model.updateTimeAfterBackground()
+//        }
+//    }
     
     // MARK: - UI Updates
     private func updateUI(for state: HomeViewControllerModel.TimerState) {
