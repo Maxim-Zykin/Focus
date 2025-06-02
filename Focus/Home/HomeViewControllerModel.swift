@@ -15,8 +15,8 @@ struct PomodoroSettings {
     var pomodorosBeforeLongBreak: Int
     
     static let `default` = PomodoroSettings(
-        workDuration: 0.3,
-        shortBreakDuration: 0.1,
+        workDuration: 0.5,
+        shortBreakDuration: 0.2,
         longBreakDuration: 15,
         pomodorosBeforeLongBreak: 4
     )
@@ -43,7 +43,6 @@ class HomeViewControllerModel {
     private let maxCacheTime: TimeInterval = 3600
     private var notificationIdentifier: String?
     private let endDateKey = "pomodoroEndDate"
-
     
     // Текущее состояние
     enum TimerState {
@@ -193,21 +192,7 @@ class HomeViewControllerModel {
             return
         }
 
-        if currentState == .paused {
-            currentState = .work
-        }
-
-        // Проверяем есть ли сохранённая дата
-        if let endDate = UserDefaults.standard.object(forKey: endDateKey) as? Date {
-            let remaining = Int(endDate.timeIntervalSinceNow)
-            if remaining <= 0 {
-                transitionToNextState()
-                return
-            } else {
-                timeRemaining = remaining
-            }
-        } else {
-            resetTimerForCurrentState()
+        if UserDefaults.standard.object(forKey: endDateKey) == nil {
             let endDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
             UserDefaults.standard.set(endDate, forKey: endDateKey)
         }
@@ -216,49 +201,42 @@ class HomeViewControllerModel {
             self?.tick()
         }
         RunLoop.current.add(timer!, forMode: .common)
+
+        // ← обязательно здесь после старта таймера
+        scheduleNotifications(from: timeRemaining, cyclesCompleted: cyclesCompleted, state: currentState)
+
         timerStarted?()
         stateChanged?(currentState)
     }
-
-
     
     func pauseTimer() {
-        guard currentState != .paused else { return }
-        pausedState = currentState
+        guard timer != nil else { return } // Уже на паузе
+        
         timer?.invalidate()
         timer = nil
+        pausedState = currentState
         currentState = .paused
-        timerStopped?()
-        stateChanged?(.paused)
         cancelAllNotifications()
-        UserDefaults.standard.removeObject(forKey: endDateKey)
-        print("Таймер на паузе, уведомления удалены")
+        stateChanged?(currentState)
+        
+        // Сохраняем оставшееся время
+        let endDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
+        UserDefaults.standard.set(endDate, forKey: endDateKey)
     }
     
     func resumeTimer() {
-        guard currentState != .longBreak else {
-            print("Длинный перерыв — уведомления не ставим")
-            return
-        }
+        guard currentState == .paused && timer == nil else { return }
 
-        recalculateTimeRemaining()
-        updateDisplay()
-        if timeRemaining <= 0 {
-            transitionToNextState()
-        } else {
-            startTimer()
-            scheduleNotifications(from: timeRemaining, cyclesCompleted: cyclesCompleted, state: currentState)
-        }
+        currentState = pausedState
+
+        // Сохраняем новую дату окончания от текущего оставшегося времени
+        let endDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
+        UserDefaults.standard.set(endDate, forKey: endDateKey)
+
+        startTimer()
+        scheduleNotifications(from: timeRemaining, cyclesCompleted: cyclesCompleted, state: currentState)
+        stateChanged?(currentState)
     }
-
-
-
-    
-//    func currentElapsedTime() -> TimeInterval {
-//        guard let start = startServerTime else { return 0 }
-//        let now = TimeSyncService.shared.currentServerTime()
-//        return now.timeIntervalSince(start) - totalPausedTime
-//    }
     
     func stopTimer() {
         timer?.invalidate()
@@ -282,6 +260,8 @@ class HomeViewControllerModel {
         progressUpdated?(1.0)
         updateDisplay()
     }
+    
+    
 
     func updateTimeAfterBackground() {
         // Принудительно обновляем время
@@ -292,20 +272,26 @@ class HomeViewControllerModel {
     }
     
     // MARK: - Private Methods
-    
+
     func recalculateTimeRemaining() {
         guard let endDate = UserDefaults.standard.object(forKey: endDateKey) as? Date else { return }
         let remaining = Int(endDate.timeIntervalSinceNow)
         timeRemaining = max(remaining, 0)
+        
+        // Добавляем проверку, что таймер был активен
+        if timeRemaining <= 0 && timer != nil {
+            transitionToNextState()
+        }
     }
 
-    
-//    private func getRemainingTimeFromSavedDate() -> Int? {
-//        guard let endDate = UserDefaults.standard.object(forKey: endDateKey) as? Date else { return nil }
-//        let remaining = Int(endDate.timeIntervalSinceNow)
-//        return remaining > 0 ? remaining : 0
-//    }
-    
+    func handleAppWillEnterForeground() {
+        // Обновляем время только если таймер был активен
+        if timer != nil {
+            recalculateTimeRemaining()
+            updateDisplay()
+        }
+    }
+
     private func updateDurationsFromSettings() {
         workDuration = Int(settings.workDuration * 60)
         shortBreakDuration = Int(settings.shortBreakDuration * 60)
@@ -368,8 +354,10 @@ class HomeViewControllerModel {
     }
     
     private func updateDisplay() {
-        updateTimeLabel()
-        updateProgress()
+        DispatchQueue.main.async { [weak self] in
+            self?.updateTimeLabel()
+            self?.updateProgress()
+        }
     }
     
     private func updateTimeLabel() {

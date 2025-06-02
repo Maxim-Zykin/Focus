@@ -93,6 +93,20 @@ class HomeViewController: UIViewController {
         bindModel()
         setupPomodoroCircles()
         model.requestNotificationPermissions()
+       // setupObservers()
+    }
+
+    private func setupObservers() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appWillEnterForeground),
+            name: UIApplication.willEnterForegroundNotification,
+            object: nil
+        )
+    }
+
+    @objc private func appWillEnterForeground() {
+        model.handleAppWillEnterForeground()
     }
     
     // MARK: - Setup
@@ -208,7 +222,7 @@ class HomeViewController: UIViewController {
             model.resumeTimer() // только одно уведомление на оставшееся время
         } else {
             model.startTimer() // запускаем таймер и полную серию уведомлений
-            model.scheduleNotifications(from: 0, cyclesCompleted: 0, state: .work)
+
         }
     }
 
