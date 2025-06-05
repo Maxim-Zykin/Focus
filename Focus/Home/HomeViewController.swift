@@ -93,7 +93,21 @@ class HomeViewController: UIViewController {
         bindModel()
         setupPomodoroCircles()
         model.requestNotificationPermissions()
-       // setupObservers()
+        
+        // Восстановление состояния после запуска
+        if let endDate = UserDefaults.standard.object(forKey: "pomodoroEndDate") as? Date {
+            let remaining = Int(endDate.timeIntervalSinceNow)
+            if remaining > 0 {
+                model.startTimer()
+            }
+        }
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidEnterBackground),
+            name: NSNotification.Name("AppEnteredBackground"),
+            object: nil
+        )
     }
 
     private func setupObservers() {
@@ -222,14 +236,12 @@ class HomeViewController: UIViewController {
             model.resumeTimer() // только одно уведомление на оставшееся время
         } else {
             model.startTimer() // запускаем таймер и полную серию уведомлений
-
         }
     }
-
     
     @objc private func pauseButtonTapped() {
         model.pauseTimer()
-        model.cancelAllNotifications()
+//        model.cancelAllNotifications()
 
     }
     
@@ -238,12 +250,9 @@ class HomeViewController: UIViewController {
         resetPomodoroCircles()
     }
     
-//    @objc private func appWillEnterForeground() {
-//        // При возврате в приложение синхронизируем время
-//        TimeSyncService.shared.syncTime { [weak self] success in
-//            self?.model.updateTimeAfterBackground()
-//        }
-//    }
+    @objc private func appDidEnterBackground() {
+        model.saveStateBeforeBackground()
+    }
     
     // MARK: - UI Updates
     private func updateUI(for state: HomeViewControllerModel.TimerState) {
