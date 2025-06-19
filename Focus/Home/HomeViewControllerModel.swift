@@ -16,9 +16,9 @@ struct PomodoroSettings {
     var pomodorosBeforeLongBreak: Int
     
     static let `default` = PomodoroSettings(
-        workDuration: 25,
-        shortBreakDuration: 5,
-        longBreakDuration: 15,
+        workDuration: 4,
+        shortBreakDuration: 1,
+        longBreakDuration: 4,
         pomodorosBeforeLongBreak: 4
     )
 }
@@ -122,21 +122,24 @@ class HomeViewControllerModel {
             var currentTime: TimeInterval = TimeInterval(timeRemaining)
             var currentCycle = cyclesCompleted
             var currentState = state
-            
-                    if currentTime == 0 && currentState == .work {
-                        currentTime += self.settings.workDuration * 60
-                    }
+            let baseDate = Date()
+
+            if currentTime == 0 && currentState == .work {
+                currentTime += self.settings.workDuration * 60
+            }
 
             while currentCycle < self.settings.pomodorosBeforeLongBreak - 1 {
                 switch currentState {
                 case .work:
-                    // Завершение работы
                     let workContent = UNMutableNotificationContent()
-                    workContent.title = Resouces.Text.Label.session + " " + "\(currentCycle+1)" + " " + Resouces.Text.Label.sessionIsCompleted
+                    workContent.title = Resouces.Text.Label.session + " \(currentCycle+1) " + Resouces.Text.Label.sessionIsCompleted
                     workContent.body = Resouces.Text.Label.shortBreak
                     workContent.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: "Pomodoro.wav"))
 
-                    let workTrigger = UNTimeIntervalNotificationTrigger(timeInterval: currentTime, repeats: false)
+                    let workDate = baseDate.addingTimeInterval(currentTime)
+                    let workComponents = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: workDate)
+                    let workTrigger = UNCalendarNotificationTrigger(dateMatching: workComponents, repeats: false)
+
                     let workRequest = UNNotificationRequest(identifier: "work_session_\(currentCycle+1)", content: workContent, trigger: workTrigger)
                     center.add(workRequest)
 
@@ -144,13 +147,15 @@ class HomeViewControllerModel {
                     currentState = .shortBreak
 
                 case .shortBreak:
-                    // Завершение короткого перерыва
                     let breakContent = UNMutableNotificationContent()
                     breakContent.title = Resouces.Text.Label.breakIsCompleted
                     breakContent.body = Resouces.Text.Label.timeForWork
                     breakContent.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: "Pomodoro.wav"))
 
-                    let breakTrigger = UNTimeIntervalNotificationTrigger(timeInterval: currentTime, repeats: false)
+                    let breakDate = baseDate.addingTimeInterval(currentTime)
+                    let breakComponents = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: breakDate)
+                    let breakTrigger = UNCalendarNotificationTrigger(dateMatching: breakComponents, repeats: false)
+
                     let breakRequest = UNNotificationRequest(identifier: "break_\(currentCycle+1)", content: breakContent, trigger: breakTrigger)
                     center.add(breakRequest)
 
@@ -159,9 +164,9 @@ class HomeViewControllerModel {
                     currentState = .work
 
                 case .longBreak:
-                    print("Длинный перерыв, уведомления больше не ставятся")
+                    print("Длинный перерыв, уведомления больше не ставим")
                     return
-                    
+
                 case .paused:
                     return
                 }
@@ -173,11 +178,15 @@ class HomeViewControllerModel {
             longBreakContent.body = "Ты завершил все \(self.settings.pomodorosBeforeLongBreak) сессий. Сделай длинный перерыв!"
             longBreakContent.sound = .default
 
-            let longBreakTrigger = UNTimeIntervalNotificationTrigger(timeInterval: currentTime, repeats: false)
+            let longBreakDate = baseDate.addingTimeInterval(currentTime)
+            let longBreakComponents = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: longBreakDate)
+            let longBreakTrigger = UNCalendarNotificationTrigger(dateMatching: longBreakComponents, repeats: false)
+
             let longBreakRequest = UNNotificationRequest(identifier: "long_break_final", content: longBreakContent, trigger: longBreakTrigger)
             center.add(longBreakRequest)
         }
     }
+
 
     func cancelAllNotifications() {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
@@ -190,7 +199,9 @@ class HomeViewControllerModel {
             print("Длинный перерыв — уведомления не ставим")
             return
         }
-        
+     
+        endBackgroundTask()
+
         backgroundTask = UIApplication.shared.beginBackgroundTask { [weak self] in
             self?.endBackgroundTask()
         }
@@ -208,16 +219,28 @@ class HomeViewControllerModel {
         timerStarted?()
         stateChanged?(currentState)
     }
+
     
+//    func saveStateBeforeBackground() {
+//        if timer != nil {
+//            // Сохраняем только если таймер активен
+//            let endDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
+//            UserDefaults.standard.set(endDate, forKey: endDateKey)
+//            UserDefaults.standard.set(currentState.rawValue, forKey: "currentState")
+//            UserDefaults.standard.synchronize()
+//        }
+//    }
+//    
     func saveStateBeforeBackground() {
         if timer != nil {
-            // Сохраняем только если таймер активен
             let endDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
             UserDefaults.standard.set(endDate, forKey: endDateKey)
             UserDefaults.standard.set(currentState.rawValue, forKey: "currentState")
+            UserDefaults.standard.set(Date(), forKey: "lastPauseDate")
             UserDefaults.standard.synchronize()
         }
     }
+
     
     func pauseTimer() {
         guard timer != nil else { return } // Уже на паузе
@@ -258,22 +281,24 @@ class HomeViewControllerModel {
         cancelPendingNotifiction()
         stopTimer()
         cancelAllNotifications()
-        
+        endBackgroundTask()
+
         currentState = .work
         cyclesCompleted = 0
         timeRemaining = workDuration
+
+        // Сохраняем новое состояние
         let endDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
         UserDefaults.standard.set(endDate, forKey: endDateKey)
-        
+        UserDefaults.standard.set(currentState.rawValue, forKey: "currentState")
+        UserDefaults.standard.synchronize()
+
         timerReset?()
         stateChanged?(currentState)
         pomodorosUpdated?(0)
-        
         progressUpdated?(1.0)
         updateDisplay()
     }
-    
-    
 
     func updateTimeAfterBackground() {
         // Принудительно обновляем время
@@ -288,13 +313,14 @@ class HomeViewControllerModel {
         guard let notificationIdentifier = notificationIdentifier else { return }
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [notificationIdentifier])
     }
-
     
     private func endBackgroundTask() {
-        UIApplication.shared.endBackgroundTask(backgroundTask)
-        backgroundTask = .invalid
+        if backgroundTask != .invalid {
+            UIApplication.shared.endBackgroundTask(backgroundTask)
+            backgroundTask = .invalid
+        }
     }
-    
+
     func recalculateTimeRemaining() {
         guard let endDate = UserDefaults.standard.object(forKey: endDateKey) as? Date else { return }
         let remaining = Int(endDate.timeIntervalSinceNow)
@@ -306,22 +332,28 @@ class HomeViewControllerModel {
         }
     }
     
+//    func handleAppWillEnterForeground() {
+//        
+//        if let lastPauseData = UserDefaults.standard.object(forKey: "lastPauseDate") as? Date {
+//            let timeInBackground = Date().timeIntervalSince(lastPauseData)
+//            timeRemaining -= Int(timeInBackground)
+//            UserDefaults.standard.removeObject(forKey: "lastPauseDate")
+//        }
+//        
+//        recalculateTimeRemaining()
+//        updateDisplay()
+//        
+//        if timeRemaining > 0 && timer == nil {
+//            startTimer()
+//        }
+//    }
+
     func handleAppWillEnterForeground() {
-        
-        if let lastPauseData = UserDefaults.standard.object(forKey: "lastPauseDate") as? Date {
-            let timeInBackground = Date().timeIntervalSince(lastPauseData)
-            timeRemaining -= Int(timeInBackground)
-            UserDefaults.standard.removeObject(forKey: "lastPauseDate")
-        }
-        
         recalculateTimeRemaining()
         updateDisplay()
-        
-        if timeRemaining > 0 && timer == nil {
-            startTimer()
-        }
     }
 
+    
     private func updateDurationsFromSettings() {
         workDuration = Int(settings.workDuration * 60)
         shortBreakDuration = Int(settings.shortBreakDuration * 60)
@@ -330,6 +362,7 @@ class HomeViewControllerModel {
     
     private func tick() {
         timeRemaining -= 1
+        print(timeRemaining)
         if timeRemaining <= 0 {
             transitionToNextState()
         }

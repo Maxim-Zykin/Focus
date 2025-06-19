@@ -93,6 +93,7 @@ class HomeViewController: UIViewController {
         bindModel()
         setupPomodoroCircles()
         model.requestNotificationPermissions()
+        setupObservers()
         
         // Восстановление состояния после запуска
         if let endDate = UserDefaults.standard.object(forKey: "pomodoroEndDate") as? Date {
@@ -102,12 +103,12 @@ class HomeViewController: UIViewController {
             }
         }
         
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(appDidEnterBackground),
-            name: NSNotification.Name("AppEnteredBackground"),
-            object: nil
-        )
+//        NotificationCenter.default.addObserver(
+//            self,
+//            selector: #selector(appDidEnterBackground),
+//            name: NSNotification.Name("AppEnteredBackground"),
+//            object: nil
+//        )
     }
 
     private func setupObservers() {
@@ -249,10 +250,10 @@ class HomeViewController: UIViewController {
         model.resetTimer()
         resetPomodoroCircles()
     }
-    
-    @objc private func appDidEnterBackground() {
-        model.saveStateBeforeBackground()
-    }
+//    
+//    @objc private func appDidEnterBackground() {
+//        model.saveStateBeforeBackground()
+//    }
     
     // MARK: - UI Updates
     private func updateUI(for state: HomeViewControllerModel.TimerState) {
