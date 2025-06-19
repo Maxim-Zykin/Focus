@@ -93,21 +93,24 @@ class HomeViewController: UIViewController {
         bindModel()
         setupPomodoroCircles()
         model.requestNotificationPermissions()
+        setupObservers()
         
         // Восстановление состояния после запуска
         if let endDate = UserDefaults.standard.object(forKey: "pomodoroEndDate") as? Date {
             let remaining = Int(endDate.timeIntervalSinceNow)
             if remaining > 0 {
-                model.startTimer()
+                model.recalculateTimeRemaining()
+                model.handleAppWillEnterForeground() // если хочешь просто пересчитать данные без старта
             }
         }
+
         
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(appDidEnterBackground),
-            name: NSNotification.Name("AppEnteredBackground"),
-            object: nil
-        )
+//        NotificationCenter.default.addObserver(
+//            self,
+//            selector: #selector(appDidEnterBackground),
+//            name: NSNotification.Name("AppEnteredBackground"),
+//            object: nil
+//        )
     }
 
     private func setupObservers() {
@@ -168,20 +171,36 @@ class HomeViewController: UIViewController {
     
     private func bindModel() {
         model.timerUpdated = { [weak self] timeString in
-            self?.timeLabel.text = timeString
-        }
-        
-        model.stateChanged = { [weak self] state in
-            self?.updateUI(for: state)
-            if case .work = state {
-                self?.updatePomodoroCircles()
+            DispatchQueue.main.async {
+                self?.timeLabel.text = timeString
             }
         }
-        
+
+        model.stateChanged = { [weak self] state in
+            DispatchQueue.main.async {
+                self?.updateUI(for: state)
+                if case .work = state {
+                    self?.updatePomodoroCircles()
+                }
+            }
+        }
+
         model.progressUpdated = { [weak self] progress in
-            self?.progressView.setProgress(Float(progress), animated: true)
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.progressView.setProgress(Float(progress), animated: progress != 0)
+            }
+        }
+
+        model.timerReset = { [weak self] in
+            DispatchQueue.main.async {
+                self?.progressView.setProgress(1.0, animated: false)
+                self?.timeLabel.text = "00:00"
+            }
         }
     }
+
+
     
     private func setupPomodoroCircles() {
         pomodoroCirclesStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
@@ -249,10 +268,10 @@ class HomeViewController: UIViewController {
         model.resetTimer()
         resetPomodoroCircles()
     }
-    
-    @objc private func appDidEnterBackground() {
-        model.saveStateBeforeBackground()
-    }
+//    
+//    @objc private func appDidEnterBackground() {
+//        model.saveStateBeforeBackground()
+//    }
     
     // MARK: - UI Updates
     private func updateUI(for state: HomeViewControllerModel.TimerState) {

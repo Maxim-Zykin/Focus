@@ -18,7 +18,7 @@ struct PomodoroSettings {
     static let `default` = PomodoroSettings(
         workDuration: 25,
         shortBreakDuration: 5,
-        longBreakDuration: 15,
+        longBreakDuration: 4,
         pomodorosBeforeLongBreak: 4
     )
 }
@@ -41,12 +41,17 @@ class HomeViewControllerModel {
     private var startServerTime: Date?
     private var totalPausedTime: TimeInterval = 0
     private var lastPausedTime: Date?
-    private var lastSyncSuccess: Bool = false
-    private var lastSyncTime: Date?
+//    private var lastSyncSuccess: Bool = false
+//    private var lastSyncTime: Date?
     private let syncTimeInterval: TimeInterval = 3600 // Синхронизировать каждые 60 минут
     private let maxCacheTime: TimeInterval = 3600
     private var notificationIdentifier: String?
     private let endDateKey = "pomodoroEndDate"
+    private var sessionStartDate: Date?
+    private var sessionEndDate: Date?
+    private(set) var isTimerActive: Bool = false
+
+
     
     // Текущее состояние
     enum TimerState {
@@ -56,8 +61,8 @@ class HomeViewControllerModel {
         case paused
     }
     
-     var currentState: TimerState = .work
-     var cyclesCompleted: Int = 0 {
+    var currentState: TimerState = .work
+    var cyclesCompleted: Int = 0 {
         didSet {
             pomodorosCompleted = cyclesCompleted % settings.pomodorosBeforeLongBreak
         }
@@ -70,7 +75,7 @@ class HomeViewControllerModel {
     private var longBreakDuration: Int = 0
     
     // Текущее оставшееся время
-     var timeRemaining: Int = 0 {
+    var timeRemaining: Int = 0 {
         didSet {
             updateDisplay()
         }
@@ -91,7 +96,7 @@ class HomeViewControllerModel {
     init() {
         updateDurationsFromSettings()
         timeRemaining = workDuration
-       // scheduleCompletionNotification()
+        // scheduleCompletionNotification()
         cancelPendingNotifiction()
     }
     
@@ -107,77 +112,86 @@ class HomeViewControllerModel {
             }
         }
     }
-
+    
     func scheduleNotifications(from timeRemaining: Int, cyclesCompleted: Int, state: TimerState) {
         let center = UNUserNotificationCenter.current()
-
+        
         center.getNotificationSettings { settingsInfo in
             guard settingsInfo.authorizationStatus == .authorized else {
                 print("Нет разрешения на уведомления")
                 return
             }
-
+            
             center.removeAllPendingNotificationRequests()
-
+            
             var currentTime: TimeInterval = TimeInterval(timeRemaining)
             var currentCycle = cyclesCompleted
             var currentState = state
+            let baseDate = Date()
             
-                    if currentTime == 0 && currentState == .work {
-                        currentTime += self.settings.workDuration * 60
-                    }
-
+            if currentTime == 0 && currentState == .work {
+                currentTime += self.settings.workDuration * 60
+            }
+            
             while currentCycle < self.settings.pomodorosBeforeLongBreak - 1 {
                 switch currentState {
                 case .work:
-                    // Завершение работы
                     let workContent = UNMutableNotificationContent()
-                    workContent.title = Resouces.Text.Label.session + " " + "\(currentCycle+1)" + " " + Resouces.Text.Label.sessionIsCompleted
+                    workContent.title = Resouces.Text.Label.session + " \(currentCycle+1) " + Resouces.Text.Label.sessionIsCompleted
                     workContent.body = Resouces.Text.Label.shortBreak
                     workContent.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: "Pomodoro.wav"))
-
-                    let workTrigger = UNTimeIntervalNotificationTrigger(timeInterval: currentTime, repeats: false)
+                    
+                    let workDate = baseDate.addingTimeInterval(currentTime)
+                    let workComponents = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: workDate)
+                    let workTrigger = UNCalendarNotificationTrigger(dateMatching: workComponents, repeats: false)
+                    
                     let workRequest = UNNotificationRequest(identifier: "work_session_\(currentCycle+1)", content: workContent, trigger: workTrigger)
                     center.add(workRequest)
-
+                    
                     currentTime += self.settings.shortBreakDuration * 60
                     currentState = .shortBreak
-
+                    
                 case .shortBreak:
-                    // Завершение короткого перерыва
                     let breakContent = UNMutableNotificationContent()
                     breakContent.title = Resouces.Text.Label.breakIsCompleted
                     breakContent.body = Resouces.Text.Label.timeForWork
                     breakContent.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: "Pomodoro.wav"))
-
-                    let breakTrigger = UNTimeIntervalNotificationTrigger(timeInterval: currentTime, repeats: false)
+                    
+                    let breakDate = baseDate.addingTimeInterval(currentTime)
+                    let breakComponents = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: breakDate)
+                    let breakTrigger = UNCalendarNotificationTrigger(dateMatching: breakComponents, repeats: false)
+                    
                     let breakRequest = UNNotificationRequest(identifier: "break_\(currentCycle+1)", content: breakContent, trigger: breakTrigger)
                     center.add(breakRequest)
-
+                    
                     currentCycle += 1
                     currentTime += self.settings.workDuration * 60
                     currentState = .work
-
+                    
                 case .longBreak:
-                    print("Длинный перерыв, уведомления больше не ставятся")
+                    print("Длинный перерыв, уведомления больше не ставим")
                     return
                     
                 case .paused:
                     return
                 }
             }
-
+            
             // длинный перерыв после всех циклов
             let longBreakContent = UNMutableNotificationContent()
             longBreakContent.title = "Поздравляем!"
             longBreakContent.body = "Ты завершил все \(self.settings.pomodorosBeforeLongBreak) сессий. Сделай длинный перерыв!"
             longBreakContent.sound = .default
-
-            let longBreakTrigger = UNTimeIntervalNotificationTrigger(timeInterval: currentTime, repeats: false)
+            
+            let longBreakDate = baseDate.addingTimeInterval(currentTime)
+            let longBreakComponents = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: longBreakDate)
+            let longBreakTrigger = UNCalendarNotificationTrigger(dateMatching: longBreakComponents, repeats: false)
+            
             let longBreakRequest = UNNotificationRequest(identifier: "long_break_final", content: longBreakContent, trigger: longBreakTrigger)
             center.add(longBreakRequest)
         }
     }
+
 
     func cancelAllNotifications() {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
@@ -190,34 +204,45 @@ class HomeViewControllerModel {
             print("Длинный перерыв — уведомления не ставим")
             return
         }
-        
+        guard currentState != .paused else {
+            print("На паузе — таймер не стартуем")
+            return
+        }
+
+        endBackgroundTask()
+
         backgroundTask = UIApplication.shared.beginBackgroundTask { [weak self] in
             self?.endBackgroundTask()
         }
-        
-        let endDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
+
+        sessionStartDate = Date()
+        sessionEndDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
+
+        let endDate = sessionEndDate!
         UserDefaults.standard.set(endDate, forKey: endDateKey)
         UserDefaults.standard.set(currentState.rawValue, forKey: "currentState")
-        
+
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             self?.tick()
         }
         RunLoop.current.add(timer!, forMode: .common)
 
         scheduleNotifications(from: timeRemaining, cyclesCompleted: cyclesCompleted, state: currentState)
+        isTimerActive = true
         timerStarted?()
         stateChanged?(currentState)
     }
-    
+  
     func saveStateBeforeBackground() {
         if timer != nil {
-            // Сохраняем только если таймер активен
             let endDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
             UserDefaults.standard.set(endDate, forKey: endDateKey)
             UserDefaults.standard.set(currentState.rawValue, forKey: "currentState")
+            UserDefaults.standard.set(Date(), forKey: "lastPauseDate")
             UserDefaults.standard.synchronize()
         }
     }
+
     
     func pauseTimer() {
         guard timer != nil else { return } // Уже на паузе
@@ -252,29 +277,34 @@ class HomeViewControllerModel {
     func stopTimer() {
         timer?.invalidate()
         timer = nil
+        isTimerActive = false
     }
     
     func resetTimer() {
         cancelPendingNotifiction()
         stopTimer()
         cancelAllNotifications()
-        
+        endBackgroundTask()
+
+        sessionStartDate = nil
+        sessionEndDate = nil
+
         currentState = .work
         cyclesCompleted = 0
         timeRemaining = workDuration
+
         let endDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
         UserDefaults.standard.set(endDate, forKey: endDateKey)
-        
+        UserDefaults.standard.set(currentState.rawValue, forKey: "currentState")
+        UserDefaults.standard.synchronize()
+
         timerReset?()
         stateChanged?(currentState)
         pomodorosUpdated?(0)
-        
         progressUpdated?(1.0)
         updateDisplay()
     }
     
-    
-
     func updateTimeAfterBackground() {
         // Принудительно обновляем время
         TimeSyncService.shared.syncTime { [weak self] _ in
@@ -288,40 +318,47 @@ class HomeViewControllerModel {
         guard let notificationIdentifier = notificationIdentifier else { return }
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [notificationIdentifier])
     }
-
     
     private func endBackgroundTask() {
-        UIApplication.shared.endBackgroundTask(backgroundTask)
-        backgroundTask = .invalid
+        if backgroundTask != .invalid {
+            UIApplication.shared.endBackgroundTask(backgroundTask)
+            backgroundTask = .invalid
+        }
     }
-    
+
     func recalculateTimeRemaining() {
+        guard isTimerActive else { return }
         guard let endDate = UserDefaults.standard.object(forKey: endDateKey) as? Date else { return }
+
         let remaining = Int(endDate.timeIntervalSinceNow)
         timeRemaining = max(remaining, 0)
-        
-        // Добавляем проверку, что таймер был активен
+
         if timeRemaining <= 0 && timer != nil {
             transitionToNextState()
         }
     }
+
     
     func handleAppWillEnterForeground() {
-        
-        if let lastPauseData = UserDefaults.standard.object(forKey: "lastPauseDate") as? Date {
-            let timeInBackground = Date().timeIntervalSince(lastPauseData)
-            timeRemaining -= Int(timeInBackground)
-            UserDefaults.standard.removeObject(forKey: "lastPauseDate")
+        if currentState == .paused {
+            updateDisplay()
+            return
         }
-        
+
         recalculateTimeRemaining()
         updateDisplay()
-        
-        if timeRemaining > 0 && timer == nil {
-            startTimer()
+
+        if isTimerActive {
+            if timeRemaining > 0 && timer == nil {
+                startTimer()
+            } else if timeRemaining <= 0 && timer != nil {
+                transitionToNextState()
+            }
         }
     }
 
+
+    
     private func updateDurationsFromSettings() {
         workDuration = Int(settings.workDuration * 60)
         shortBreakDuration = Int(settings.shortBreakDuration * 60)
@@ -330,10 +367,17 @@ class HomeViewControllerModel {
     
     private func tick() {
         timeRemaining -= 1
+        print(timeRemaining)
+        updateDisplay()
+
         if timeRemaining <= 0 {
-            transitionToNextState()
+            // Ждём 0.1 секунды чтобы анимация успела дойти до 0
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                self?.transitionToNextState()
+            }
         }
     }
+
     
     private func transitionToNextState() {
         print("Переход к следующему состоянию")
@@ -350,14 +394,20 @@ class HomeViewControllerModel {
         case .paused:
             return
         }
-        
+
         resetTimerForCurrentState()
+
+        // ВАЖНО: обновляем sessionStartDate/sessionEndDate для нового периода
+        sessionStartDate = Date()
+        sessionEndDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
+
         let endDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
         UserDefaults.standard.set(endDate, forKey: endDateKey)
-        
+
         stateChanged?(currentState)
         startTimer()
     }
+
     
     private func resetTimerForCurrentState() {
         switch currentState {
@@ -400,16 +450,18 @@ class HomeViewControllerModel {
     }
     
     private func updateProgress() {
-        let totalDuration: Int
-        switch currentState {
-        case .work: totalDuration = workDuration
-        case .shortBreak: totalDuration = shortBreakDuration
-        case .longBreak: totalDuration = longBreakDuration
-        case .paused: totalDuration = 1
+        guard let start = sessionStartDate, let end = sessionEndDate else {
+            progressUpdated?(1.0)
+            return
         }
-        
-        let progress = CGFloat(timeRemaining) / CGFloat(totalDuration)
-        progressUpdated?(progress)
+
+        let now = Date()
+        let progress = CGFloat((end.timeIntervalSince1970 - now.timeIntervalSince1970) / (end.timeIntervalSince1970 - start.timeIntervalSince1970))
+        let clampedProgress = max(0, min(1, progress))
+
+        DispatchQueue.main.async {
+            self.progressUpdated?(clampedProgress)
+        }
     }
 }
 

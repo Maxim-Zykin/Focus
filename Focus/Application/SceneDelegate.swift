@@ -24,20 +24,20 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window.makeKeyAndVisible()
     }
     
-    func applicationDidEnterBackground(_ application: UIApplication) {
-        guard let window = window else { return }
-        
-        // Находим HomeViewController в иерархии
-        if let navController = window.rootViewController as? UINavigationController,
-           let homeVC = navController.viewControllers.first as? HomeViewController {
-            homeVC.modelInstance.saveStateBeforeBackground()
-        } else if let homeVC = window.rootViewController as? HomeViewController {
-            homeVC.modelInstance.saveStateBeforeBackground()
-        }
-        
-        // Альтернативный вариант через NotificationCenter
-        NotificationCenter.default.post(name: NSNotification.Name("AppEnteredBackground"), object: nil)
-    }
+//    func applicationDidEnterBackground(_ application: UIApplication) {
+//        guard let window = window else { return }
+//        
+//        // Находим HomeViewController в иерархии
+//        if let navController = window.rootViewController as? UINavigationController,
+//           let homeVC = navController.viewControllers.first as? HomeViewController {
+//            homeVC.modelInstance.saveStateBeforeBackground()
+//        } else if let homeVC = window.rootViewController as? HomeViewController {
+//            homeVC.modelInstance.saveStateBeforeBackground()
+//        }
+//        
+//        // Альтернативный вариант через NotificationCenter
+//        NotificationCenter.default.post(name: NSNotification.Name("AppEnteredBackground"), object: nil)
+//    }
 
     func sceneDidDisconnect(_ scene: UIScene) {
         // Called as the scene is being released by the system.
