@@ -100,7 +100,7 @@ class HomeViewController: UIViewController {
             let remaining = Int(endDate.timeIntervalSinceNow)
             if remaining > 0 {
                 model.recalculateTimeRemaining()
-                model.handleAppWillEnterForeground() // если хочешь просто пересчитать данные без старта
+                model.handleAppWillEnterForeground()
             }
         }
 
@@ -125,6 +125,26 @@ class HomeViewController: UIViewController {
     @objc private func appWillEnterForeground() {
         model.handleAppWillEnterForeground()
     }
+    
+    private func setupObservers2() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appWillEnterForeground),
+            name: UIApplication.willEnterForegroundNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidEnterBackground),
+            name: UIApplication.didEnterBackgroundNotification,
+            object: nil
+        )
+    }
+
+    @objc private func appDidEnterBackground() {
+        model.saveStateBeforeBackground()
+    }
+
     
     // MARK: - Setup
     private func setupUI() {
@@ -200,8 +220,6 @@ class HomeViewController: UIViewController {
         }
     }
 
-
-    
     private func setupPomodoroCircles() {
         pomodoroCirclesStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         circleViews.removeAll()

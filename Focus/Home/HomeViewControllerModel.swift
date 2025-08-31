@@ -18,7 +18,7 @@ struct PomodoroSettings {
     static let `default` = PomodoroSettings(
         workDuration: 25,
         shortBreakDuration: 5,
-        longBreakDuration: 4,
+        longBreakDuration: 15,
         pomodorosBeforeLongBreak: 4
     )
 }
@@ -41,8 +41,6 @@ class HomeViewControllerModel {
     private var startServerTime: Date?
     private var totalPausedTime: TimeInterval = 0
     private var lastPausedTime: Date?
-//    private var lastSyncSuccess: Bool = false
-//    private var lastSyncTime: Date?
     private let syncTimeInterval: TimeInterval = 3600 // Синхронизировать каждые 60 минут
     private let maxCacheTime: TimeInterval = 3600
     private var notificationIdentifier: String?
@@ -234,6 +232,8 @@ class HomeViewControllerModel {
     }
   
     func saveStateBeforeBackground() {
+        UserDefaults.standard.set(isTimerActive, forKey: "isTimerActive")
+
         if timer != nil {
             let endDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
             UserDefaults.standard.set(endDate, forKey: endDateKey)
@@ -242,8 +242,7 @@ class HomeViewControllerModel {
             UserDefaults.standard.synchronize()
         }
     }
-
-    
+ 
     func pauseTimer() {
         guard timer != nil else { return } // Уже на паузе
         
@@ -265,14 +264,20 @@ class HomeViewControllerModel {
 
         currentState = pausedState
 
-        // Сохраняем новую дату окончания от текущего оставшегося времени
         let endDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
         UserDefaults.standard.set(endDate, forKey: endDateKey)
+        UserDefaults.standard.set(isTimerActive, forKey: "isTimerActive")
 
-        startTimer()
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            self?.tick()
+        }
+        RunLoop.current.add(timer!, forMode: .common)
+
+        isTimerActive = true
         scheduleNotifications(from: timeRemaining, cyclesCompleted: cyclesCompleted, state: currentState)
         stateChanged?(currentState)
     }
+
     
     func stopTimer() {
         timer?.invalidate()
@@ -337,26 +342,25 @@ class HomeViewControllerModel {
             transitionToNextState()
         }
     }
-
     
     func handleAppWillEnterForeground() {
         if currentState == .paused {
             updateDisplay()
             return
         }
-
+        
         recalculateTimeRemaining()
         updateDisplay()
 
-        if isTimerActive {
-            if timeRemaining > 0 && timer == nil {
-                startTimer()
-            } else if timeRemaining <= 0 && timer != nil {
-                transitionToNextState()
+        if timeRemaining <= 0 {
+            transitionToNextState()
+        } else if isTimerActive && timer == nil {
+            timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+                self?.tick()
             }
+            RunLoop.current.add(timer!, forMode: .common)
         }
     }
-
 
     
     private func updateDurationsFromSettings() {
@@ -366,48 +370,64 @@ class HomeViewControllerModel {
     }
     
     private func tick() {
-        timeRemaining -= 1
-        print(timeRemaining)
+        guard let end = sessionEndDate else { return }
+        timeRemaining = max(Int(end.timeIntervalSinceNow), 0)
         updateDisplay()
 
         if timeRemaining <= 0 {
-            // Ждём 0.1 секунды чтобы анимация успела дойти до 0
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
                 self?.transitionToNextState()
             }
         }
     }
 
-    
     private func transitionToNextState() {
         print("Переход к следующему состоянию")
+        
         switch currentState {
         case .work:
             cyclesCompleted += 1
             currentState = shouldTakeLongBreak() ? .longBreak : .shortBreak
             pomodorosUpdated?(pomodorosCompleted)
+            
         case .shortBreak:
             currentState = .work
+            
         case .longBreak:
-            resetTimer()
+            // длинный перерыв — не сбрасываем всё сразу
+            timeRemaining = longBreakDuration
+            sessionStartDate = Date()
+            sessionEndDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
+            
+            UserDefaults.standard.set(sessionEndDate, forKey: endDateKey)
+            UserDefaults.standard.set(currentState.rawValue, forKey: "currentState")
+            UserDefaults.standard.synchronize()
+            
+            stateChanged?(currentState)
+            stopTimer() // останавливаем, чтобы ждать ручного старта
             return
+            
         case .paused:
             return
         }
-
+        
+        // Устанавливаем новое время для текущего состояния
         resetTimerForCurrentState()
-
-        // ВАЖНО: обновляем sessionStartDate/sessionEndDate для нового периода
+        
+        // Запоминаем даты
         sessionStartDate = Date()
         sessionEndDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
-
-        let endDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
-        UserDefaults.standard.set(endDate, forKey: endDateKey)
-
+        
+        UserDefaults.standard.set(sessionEndDate, forKey: endDateKey)
+        UserDefaults.standard.set(currentState.rawValue, forKey: "currentState")
+        UserDefaults.standard.synchronize()
+        
+        // Обновляем UI
         stateChanged?(currentState)
+        
+        // Запускаем тикер (он будет считать от sessionEndDate)
         startTimer()
     }
-
     
     private func resetTimerForCurrentState() {
         switch currentState {
