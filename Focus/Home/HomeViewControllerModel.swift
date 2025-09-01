@@ -45,8 +45,8 @@ class HomeViewControllerModel {
     private let maxCacheTime: TimeInterval = 3600
     private var notificationIdentifier: String?
     private let endDateKey = "pomodoroEndDate"
-    private var sessionStartDate: Date?
-    private var sessionEndDate: Date?
+     var sessionStartDate: Date?
+     var sessionEndDate: Date?
     private(set) var isTimerActive: Bool = false
 
 
@@ -229,6 +229,7 @@ class HomeViewControllerModel {
         isTimerActive = true
         timerStarted?()
         stateChanged?(currentState)
+        progressUpdated?(1.0)
     }
   
     func saveStateBeforeBackground() {
@@ -348,7 +349,7 @@ class HomeViewControllerModel {
             updateDisplay()
             return
         }
-        
+
         recalculateTimeRemaining()
         updateDisplay()
 
@@ -361,7 +362,6 @@ class HomeViewControllerModel {
             RunLoop.current.add(timer!, forMode: .common)
         }
     }
-
     
     private func updateDurationsFromSettings() {
         workDuration = Int(settings.workDuration * 60)
@@ -369,9 +369,29 @@ class HomeViewControllerModel {
         longBreakDuration = Int(settings.longBreakDuration * 60)
     }
     
+//    private func tick() {
+//        guard let end = sessionEndDate else { return }
+//        timeRemaining = max(Int(end.timeIntervalSinceNow), 0)
+//        updateDisplay()
+//
+//        if timeRemaining <= 0 {
+//            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+//                self?.transitionToNextState()
+//            }
+//        }
+//    }
+    
     private func tick() {
         guard let end = sessionEndDate else { return }
+
+        // считаем реальное оставшееся время
         timeRemaining = max(Int(end.timeIntervalSinceNow), 0)
+
+        // Вывод в консоль (минуты:секунды)
+        let minutes = timeRemaining / 60
+        let seconds = timeRemaining % 60
+        print(String(format: "⏱ Осталось %02d:%02d", minutes, seconds))
+
         updateDisplay()
 
         if timeRemaining <= 0 {
@@ -381,53 +401,59 @@ class HomeViewControllerModel {
         }
     }
 
+
     private func transitionToNextState() {
         print("Переход к следующему состоянию")
-        
+
         switch currentState {
         case .work:
             cyclesCompleted += 1
             currentState = shouldTakeLongBreak() ? .longBreak : .shortBreak
             pomodorosUpdated?(pomodorosCompleted)
-            
+
         case .shortBreak:
             currentState = .work
-            
+
         case .longBreak:
-            // длинный перерыв — не сбрасываем всё сразу
             timeRemaining = longBreakDuration
             sessionStartDate = Date()
             sessionEndDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
-            
+
             UserDefaults.standard.set(sessionEndDate, forKey: endDateKey)
             UserDefaults.standard.set(currentState.rawValue, forKey: "currentState")
             UserDefaults.standard.synchronize()
-            
+
             stateChanged?(currentState)
-            stopTimer() // останавливаем, чтобы ждать ручного старта
+            updateDisplay()
+            stopTimer()
             return
-            
+
         case .paused:
             return
         }
-        
-        // Устанавливаем новое время для текущего состояния
+
         resetTimerForCurrentState()
-        
-        // Запоминаем даты
+
         sessionStartDate = Date()
         sessionEndDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
-        
+
         UserDefaults.standard.set(sessionEndDate, forKey: endDateKey)
         UserDefaults.standard.set(currentState.rawValue, forKey: "currentState")
         UserDefaults.standard.synchronize()
-        
-        // Обновляем UI
+
         stateChanged?(currentState)
-        
-        // Запускаем тикер (он будет считать от sessionEndDate)
-        startTimer()
+        updateDisplay()
+
+        if isTimerActive {
+            stopTimer()
+        }
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            self?.tick()
+        }
+        RunLoop.current.add(timer!, forMode: .common)
+        isTimerActive = true
     }
+
     
     private func resetTimerForCurrentState() {
         switch currentState {
@@ -456,12 +482,21 @@ class HomeViewControllerModel {
         return .work
     }
     
-    private func updateDisplay() {
+     func updateDisplay() {
         DispatchQueue.main.async { [weak self] in
-            self?.updateTimeLabel()
-            self?.updateProgress()
+            guard let self = self else { return }
+            
+            self.updateTimeLabel()
+            
+            if self.sessionStartDate == nil || self.sessionEndDate == nil {
+                // 👇 Гарантируем, что прогресс-бар всегда будет полон на старте
+                self.progressUpdated?(1.0)
+            } else {
+                self.updateProgress()
+            }
         }
     }
+
     
     private func updateTimeLabel() {
         let minutes = timeRemaining / 60

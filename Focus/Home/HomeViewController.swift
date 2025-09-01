@@ -94,24 +94,69 @@ class HomeViewController: UIViewController {
         setupPomodoroCircles()
         model.requestNotificationPermissions()
         setupObservers()
-        
-        // Восстановление состояния после запуска
-        if let endDate = UserDefaults.standard.object(forKey: "pomodoroEndDate") as? Date {
-            let remaining = Int(endDate.timeIntervalSinceNow)
-            if remaining > 0 {
+
+        if let endDate = UserDefaults.standard.object(forKey: "pomodoroEndDate") as? Date,
+           let stateRaw = UserDefaults.standard.string(forKey: "currentState"),
+           let restoredState = HomeViewControllerModel.TimerState(rawValue: stateRaw) {
+
+            model.currentState = restoredState
+            let wasActive = UserDefaults.standard.bool(forKey: "isTimerActive")
+
+            if wasActive {
+                // 🔹 Таймер шёл → восстанавливаем с endDate
+                model.sessionEndDate = endDate
+                switch restoredState {
+                case .work:
+                    model.sessionStartDate = endDate.addingTimeInterval(-model.settings.workDuration * 60)
+                case .shortBreak:
+                    model.sessionStartDate = endDate.addingTimeInterval(-model.settings.shortBreakDuration * 60)
+                case .longBreak:
+                    model.sessionStartDate = endDate.addingTimeInterval(-model.settings.longBreakDuration * 60)
+                case .paused:
+                    break
+                }
                 model.recalculateTimeRemaining()
                 model.handleAppWillEnterForeground()
+            } else {
+                // 🔹 Таймер не активен → показываем полный прогресс
+                switch restoredState {
+                case .work:
+                    model.timeRemaining = Int(model.settings.workDuration * 60)
+                case .shortBreak:
+                    model.timeRemaining = Int(model.settings.shortBreakDuration * 60)
+                case .longBreak:
+                    model.timeRemaining = Int(model.settings.longBreakDuration * 60)
+                case .paused:
+                    break
+                }
+                model.sessionStartDate = nil
+                model.sessionEndDate = nil
+                model.updateDisplay()
+                updateUI(for: restoredState)
             }
         }
-
-        
-//        NotificationCenter.default.addObserver(
-//            self,
-//            selector: #selector(appDidEnterBackground),
-//            name: NSNotification.Name("AppEnteredBackground"),
-//            object: nil
-//        )
     }
+
+
+
+//    override func viewDidLoad() {
+//        super.viewDidLoad()
+//        setupUI()
+//        setupActions()
+//        bindModel()
+//        setupPomodoroCircles()
+//        model.requestNotificationPermissions()
+//        setupObservers()
+//        
+//        // Восстановление состояния после запуска
+//        if let endDate = UserDefaults.standard.object(forKey: "pomodoroEndDate") as? Date {
+//            let remaining = Int(endDate.timeIntervalSinceNow)
+//            if remaining > 0 {
+//                model.recalculateTimeRemaining()
+//                model.handleAppWillEnterForeground()
+//            }
+//        }
+//    }
 
     private func setupObservers() {
         NotificationCenter.default.addObserver(
