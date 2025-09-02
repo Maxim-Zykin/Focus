@@ -48,8 +48,6 @@ class HomeViewControllerModel {
      var sessionStartDate: Date?
      var sessionEndDate: Date?
     private(set) var isTimerActive: Bool = false
-
-
     
     // Текущее состояние
     enum TimerState {
@@ -252,7 +250,9 @@ class HomeViewControllerModel {
         pausedState = currentState
         currentState = .paused
         
-        UserDefaults.standard.set(Date(), forKey: "lastPauseData")
+        // Сохраняем оставшееся время
+        UserDefaults.standard.set(timeRemaining, forKey: "pausedTimeRemaining")
+        UserDefaults.standard.set(Date(), forKey: "lastPauseDate")
         UserDefaults.standard.synchronize()
         
         cancelAllNotifications()
@@ -265,9 +265,13 @@ class HomeViewControllerModel {
 
         currentState = pausedState
 
-        let endDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
+        // Обновляем sessionEndDate на текущее время + оставшееся время
+        sessionEndDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
+        
+        let endDate = sessionEndDate!
         UserDefaults.standard.set(endDate, forKey: endDateKey)
-        UserDefaults.standard.set(isTimerActive, forKey: "isTimerActive")
+        UserDefaults.standard.set(currentState.rawValue, forKey: "currentState")
+        UserDefaults.standard.set(true, forKey: "isTimerActive")
 
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             self?.tick()
@@ -299,9 +303,10 @@ class HomeViewControllerModel {
         cyclesCompleted = 0
         timeRemaining = workDuration
 
-        let endDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
-        UserDefaults.standard.set(endDate, forKey: endDateKey)
-        UserDefaults.standard.set(currentState.rawValue, forKey: "currentState")
+        // Очищаем сохраненное время паузы
+        UserDefaults.standard.removeObject(forKey: "pausedTimeRemaining")
+        UserDefaults.standard.removeObject(forKey: endDateKey)
+        UserDefaults.standard.removeObject(forKey: "currentState")
         UserDefaults.standard.synchronize()
 
         timerReset?()
@@ -489,7 +494,6 @@ class HomeViewControllerModel {
             self.updateTimeLabel()
             
             if self.sessionStartDate == nil || self.sessionEndDate == nil {
-                // 👇 Гарантируем, что прогресс-бар всегда будет полон на старте
                 self.progressUpdated?(1.0)
             } else {
                 self.updateProgress()

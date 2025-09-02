@@ -94,50 +94,59 @@ class HomeViewController: UIViewController {
         setupPomodoroCircles()
         model.requestNotificationPermissions()
         setupObservers()
+        restoreTimerState()
+    }
 
-        if let endDate = UserDefaults.standard.object(forKey: "pomodoroEndDate") as? Date,
-           let stateRaw = UserDefaults.standard.string(forKey: "currentState"),
-           let restoredState = HomeViewControllerModel.TimerState(rawValue: stateRaw) {
-
-            model.currentState = restoredState
-            let wasActive = UserDefaults.standard.bool(forKey: "isTimerActive")
-
-            if wasActive {
-                // 🔹 Таймер шёл → восстанавливаем с endDate
-                model.sessionEndDate = endDate
-                switch restoredState {
-                case .work:
-                    model.sessionStartDate = endDate.addingTimeInterval(-model.settings.workDuration * 60)
-                case .shortBreak:
-                    model.sessionStartDate = endDate.addingTimeInterval(-model.settings.shortBreakDuration * 60)
-                case .longBreak:
-                    model.sessionStartDate = endDate.addingTimeInterval(-model.settings.longBreakDuration * 60)
-                case .paused:
-                    break
-                }
-                model.recalculateTimeRemaining()
-                model.handleAppWillEnterForeground()
-            } else {
-                // 🔹 Таймер не активен → показываем полный прогресс
-                switch restoredState {
-                case .work:
-                    model.timeRemaining = Int(model.settings.workDuration * 60)
-                case .shortBreak:
-                    model.timeRemaining = Int(model.settings.shortBreakDuration * 60)
-                case .longBreak:
-                    model.timeRemaining = Int(model.settings.longBreakDuration * 60)
-                case .paused:
-                    break
-                }
-                model.sessionStartDate = nil
-                model.sessionEndDate = nil
-                model.updateDisplay()
-                updateUI(for: restoredState)
-            }
+    private func restoreTimerState() {
+        guard let endDate = UserDefaults.standard.object(forKey: "pomodoroEndDate") as? Date,
+              let stateRaw = UserDefaults.standard.string(forKey: "currentState"),
+              let restoredState = HomeViewControllerModel.TimerState(rawValue: stateRaw) else { return }
+        
+        model.currentState = restoredState
+        let wasActive = UserDefaults.standard.bool(forKey: "isTimerActive")
+        
+        if wasActive {
+            restoreActiveTimer(endDate: endDate, state: restoredState)
+        } else {
+            restoreInactiveTimer(state: restoredState)
         }
     }
 
+    private func restoreActiveTimer(endDate: Date, state: HomeViewControllerModel.TimerState) {
+        model.sessionEndDate = endDate
+        
+        if state != .paused {
+            let duration = getDuration(for: state)
+            model.sessionStartDate = endDate.addingTimeInterval(-duration * 60)
+        } else if let pausedTime = UserDefaults.standard.object(forKey: "pausedTimeRemaining") as? Int {
+            model.timeRemaining = pausedTime
+        }
+        
+        model.recalculateTimeRemaining()
+        model.handleAppWillEnterForeground()
+    }
 
+    private func restoreInactiveTimer(state: HomeViewControllerModel.TimerState) {
+        if state != .paused {
+            model.timeRemaining = Int(getDuration(for: state) * 60)
+        } else if let pausedTime = UserDefaults.standard.object(forKey: "pausedTimeRemaining") as? Int {
+            model.timeRemaining = pausedTime
+        }
+        
+        model.sessionStartDate = nil
+        model.sessionEndDate = nil
+        model.updateDisplay()
+        updateUI(for: state)
+    }
+
+    private func getDuration(for state: HomeViewControllerModel.TimerState) -> TimeInterval {
+        switch state {
+        case .work: return model.settings.workDuration
+        case .shortBreak: return model.settings.shortBreakDuration
+        case .longBreak: return model.settings.longBreakDuration
+        case .paused: return 0
+        }
+    }
 
 //    override func viewDidLoad() {
 //        super.viewDidLoad()
