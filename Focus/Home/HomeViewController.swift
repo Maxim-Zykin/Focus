@@ -3,8 +3,10 @@
 //  Focus
 //
 //  Created by Максим Зыкин on 09.02.2025.
+//
 
 import UIKit
+import UserNotifications
 
 class HomeViewController: UIViewController {
     
@@ -78,10 +80,6 @@ class HomeViewController: UIViewController {
     
     // MARK: - Properties
     private let model = HomeViewControllerModel()
-    var modelInstance: HomeViewControllerModel {
-        return model
-    }
-
     private var circleViews: [UIView] = []
     private let maxCircle = PomodoroSettings.default.pomodorosBeforeLongBreak
     
@@ -94,93 +92,15 @@ class HomeViewController: UIViewController {
         setupPomodoroCircles()
         model.requestNotificationPermissions()
         setupObservers()
-        restoreTimerState()
-    }
-
-    private func restoreTimerState() {
-        guard let endDate = UserDefaults.standard.object(forKey: "pomodoroEndDate") as? Date,
-              let stateRaw = UserDefaults.standard.string(forKey: "currentState"),
-              let restoredState = HomeViewControllerModel.TimerState(rawValue: stateRaw) else { return }
         
-        model.currentState = restoredState
-        let wasActive = UserDefaults.standard.bool(forKey: "isTimerActive")
-        
-        if wasActive {
-            restoreActiveTimer(endDate: endDate, state: restoredState)
-        } else {
-            restoreInactiveTimer(state: restoredState)
-        }
-    }
-
-    private func restoreActiveTimer(endDate: Date, state: HomeViewControllerModel.TimerState) {
-        model.sessionEndDate = endDate
-        
-        if state != .paused {
-            let duration = getDuration(for: state)
-            model.sessionStartDate = endDate.addingTimeInterval(-duration * 60)
-        } else if let pausedTime = UserDefaults.standard.object(forKey: "pausedTimeRemaining") as? Int {
-            model.timeRemaining = pausedTime
-        }
-        
-        model.recalculateTimeRemaining()
+        // Восстанавливаем актуальное состояние
         model.handleAppWillEnterForeground()
-    }
-
-    private func restoreInactiveTimer(state: HomeViewControllerModel.TimerState) {
-        if state != .paused {
-            model.timeRemaining = Int(getDuration(for: state) * 60)
-        } else if let pausedTime = UserDefaults.standard.object(forKey: "pausedTimeRemaining") as? Int {
-            model.timeRemaining = pausedTime
-        }
-        
-        model.sessionStartDate = nil
-        model.sessionEndDate = nil
-        model.updateDisplay()
-        updateUI(for: state)
-    }
-
-    private func getDuration(for state: HomeViewControllerModel.TimerState) -> TimeInterval {
-        switch state {
-        case .work: return model.settings.workDuration
-        case .shortBreak: return model.settings.shortBreakDuration
-        case .longBreak: return model.settings.longBreakDuration
-        case .paused: return 0
-        }
-    }
-
-//    override func viewDidLoad() {
-//        super.viewDidLoad()
-//        setupUI()
-//        setupActions()
-//        bindModel()
-//        setupPomodoroCircles()
-//        model.requestNotificationPermissions()
-//        setupObservers()
-//        
-//        // Восстановление состояния после запуска
-//        if let endDate = UserDefaults.standard.object(forKey: "pomodoroEndDate") as? Date {
-//            let remaining = Int(endDate.timeIntervalSinceNow)
-//            if remaining > 0 {
-//                model.recalculateTimeRemaining()
-//                model.handleAppWillEnterForeground()
-//            }
-//        }
-//    }
-
-    private func setupObservers() {
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(appWillEnterForeground),
-            name: UIApplication.willEnterForegroundNotification,
-            object: nil
-        )
-    }
-
-    @objc private func appWillEnterForeground() {
-        model.handleAppWillEnterForeground()
+        updateUI(for: model.currentState)
+        updatePomodoroCircles()
     }
     
-    private func setupObservers2() {
+    // MARK: - Observers
+    private func setupObservers() {
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(appWillEnterForeground),
@@ -194,11 +114,20 @@ class HomeViewController: UIViewController {
             object: nil
         )
     }
-
-    @objc private func appDidEnterBackground() {
-        model.saveStateBeforeBackground()
+    
+//    @objc private func appWillEnterForeground() {
+//        model.handleAppWillEnterForeground()
+//        
+//    }
+    
+    @objc private func appWillEnterForeground() {
+        model.catchUpIfNeeded()   // ✅ догоняем, если в фоне цикл закончился
+        model.handleAppWillEnterForeground()
     }
 
+    @objc private func appDidEnterBackground() {
+
+    }
     
     // MARK: - Setup
     private func setupUI() {
@@ -209,11 +138,7 @@ class HomeViewController: UIViewController {
         view.addView(progressView)
         view.addView(buttonStack)
         
-        // Настройка цвета для разных состояний
-        updateUI(for: model.currentState)
-        
         NSLayoutConstraint.activate([
-            
             pomodoroCirclesStack.topAnchor.constraint(equalTo: view.topAnchor, constant: 240),
             pomodoroCirclesStack.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             pomodoroCirclesStack.heightAnchor.constraint(equalToConstant: 20),
@@ -245,45 +170,36 @@ class HomeViewController: UIViewController {
     
     private func bindModel() {
         model.timerUpdated = { [weak self] timeString in
-            DispatchQueue.main.async {
-                self?.timeLabel.text = timeString
-            }
+            self?.timeLabel.text = timeString
         }
-
+        
         model.stateChanged = { [weak self] state in
-            DispatchQueue.main.async {
-                self?.updateUI(for: state)
-                if case .work = state {
-                    self?.updatePomodoroCircles()
-                }
+            self?.updateUI(for: state)
+            if case .work = state {
+                self?.updatePomodoroCircles()
             }
         }
-
+        
         model.progressUpdated = { [weak self] progress in
-            DispatchQueue.main.async {
-                guard let self = self else { return }
-                self.progressView.setProgress(Float(progress), animated: progress != 0)
-            }
+            self?.progressView.setProgress(Float(progress), animated: progress != 0)
         }
-
+        
         model.timerReset = { [weak self] in
-            DispatchQueue.main.async {
-                self?.progressView.setProgress(1.0, animated: false)
-                self?.timeLabel.text = "00:00"
-            }
+            self?.progressView.setProgress(1.0, animated: false)
+            self?.timeLabel.text = "00:00"
         }
     }
-
+    
+    // MARK: - Pomodoro Circles
     private func setupPomodoroCircles() {
         pomodoroCirclesStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         circleViews.removeAll()
         
         for _ in 0..<maxCircle {
             let circle = UIView()
-            circle.backgroundColor = Resouces.Color.active
+            circle.backgroundColor = .systemGray4
             circle.layer.cornerRadius = 10
             circle.clipsToBounds = true
-            
             NSLayoutConstraint.activate([
                 circle.widthAnchor.constraint(equalToConstant: 20),
                 circle.heightAnchor.constraint(equalToConstant: 20)
@@ -293,30 +209,18 @@ class HomeViewController: UIViewController {
         }
     }
     
-    private func resetPomodoroCircles() {
-        for circle in circleViews {
-            UIView.animate(withDuration: 0.3) {
-                circle.backgroundColor = .systemGray4
-            }
-        }
-    }
-
-    
     private func updatePomodoroCircles() {
         let completedPomodoros = model.cyclesCompleted % maxCircle
-        
         for (index, circle) in circleViews.enumerated() {
             UIView.animate(withDuration: 0.3) {
-                UIView.animate(withDuration: 0.3) {
-                    circle.backgroundColor = index < completedPomodoros ? .systemBlue : .systemGray4
-                }
+                circle.backgroundColor = index < completedPomodoros ? .systemBlue : .systemGray4
             }
-            
-            // Если все кружочки заполнены - сбрасываем после длинного перерыва
-            if completedPomodoros == 0 && model.cyclesCompleted > 0 {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                    self.setupPomodoroCircles()
-                }
+        }
+        
+        // Сброс после длинного перерыва
+        if completedPomodoros == 0 && model.cyclesCompleted > 0 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                self.setupPomodoroCircles()
             }
         }
     }
@@ -324,26 +228,20 @@ class HomeViewController: UIViewController {
     // MARK: - Actions
     @objc private func startButtonTapped() {
         if model.currentState == .paused {
-            model.resumeTimer() // только одно уведомление на оставшееся время
+            model.resumeTimer()
         } else {
-            model.startTimer() // запускаем таймер и полную серию уведомлений
+            model.startTimer()
         }
     }
     
     @objc private func pauseButtonTapped() {
         model.pauseTimer()
-//        model.cancelAllNotifications()
-
     }
     
     @objc private func resetButtonTapped() {
         model.resetTimer()
-        resetPomodoroCircles()
+        setupPomodoroCircles()
     }
-//    
-//    @objc private func appDidEnterBackground() {
-//        model.saveStateBeforeBackground()
-//    }
     
     // MARK: - UI Updates
     private func updateUI(for state: HomeViewControllerModel.TimerState) {
