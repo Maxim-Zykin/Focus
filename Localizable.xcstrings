@@ -7,13 +7,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Time is over ⏰"
+            "value" : "⏰ Work is completed!"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Время вышло ⏰"
+            "value" : "⏰ Работа завершена!"
           }
         }
       }
@@ -41,13 +41,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Take a short break"
+            "value" : "Time to take a break."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Сделай короткий перерыв"
+            "value" : "Время сделать перерыв."
           }
         }
       }
@@ -92,7 +92,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The break is completed"
+            "value" : "☕️ The break is over!"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "☕️ Перерыв окончен!"
           }
         }
       }
@@ -103,7 +109,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "It's time to work!"
+            "value" : "It's time to return to work."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пора вернуться к работе."
           }
         }
       }

@@ -44,6 +44,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                 }
             }
         }
+        
+        // В application(_:didFinishLaunchingWithOptions:) или scene(_:willConnectTo:options:)
+        UNUserNotificationCenter.current().delegate = self
+
+        // Добавьте категорию для действий
+        let action = UNNotificationAction(identifier: "OPEN_APP", title: "Открыть", options: .foreground)
+        let category = UNNotificationCategory(identifier: "STATE_CHANGE", actions: [action], intentIdentifiers: [])
+        UNUserNotificationCenter.current().setNotificationCategories([category])
 
         return true
     }
@@ -53,6 +61,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         completionHandler([.banner, .sound])
     }
+    
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+        print("📩 Получено уведомление: \(response.notification.request.identifier)")
+        
+        // Сохраняем время последнего уведомления
+        UserDefaults.standard.set(Date(), forKey: "lastNotificationDate")
+        UserDefaults.standard.set(response.notification.request.identifier, forKey: "lastNotificationId")
+        UserDefaults.standard.synchronize()
+        
+        completionHandler()
+    }
+
 
     func application(_ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession, options: UIScene.ConnectionOptions) -> UISceneConfiguration {
         return UISceneConfiguration(name: "Default Configuration", sessionRole: connectingSceneSession.role)
