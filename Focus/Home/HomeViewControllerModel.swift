@@ -8,6 +8,7 @@
 import Foundation
 import UserNotifications
 import UIKit
+import AVFoundation
 
 struct PomodoroSettings {
     var workDuration: TimeInterval // в минутах
@@ -36,6 +37,8 @@ class HomeViewControllerModel {
     
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
     private var pausedState: TimerState?
+    private var audioPlayer: AVAudioPlayer?
+    private var awaitingManualStartAfterLongBreak = false
     
     enum TimerState {
         case work
@@ -84,6 +87,8 @@ class HomeViewControllerModel {
     
     // MARK: - Timer Logic
     func startTimer() {
+        startBackgroundAudio()
+        awaitingManualStartAfterLongBreak = false
         guard timer == nil else { return }
         guard currentState != .paused else { return }
         
@@ -142,6 +147,7 @@ class HomeViewControllerModel {
         timer = nil
         isTimerActive = false
         timerStopped?()
+        stopBackgroundAudio()
     }
     
     func resetTimer() {
@@ -161,27 +167,38 @@ class HomeViewControllerModel {
         pomodorosUpdated?(0)
         progressUpdated?(1.0)
         updateDisplay()
+        stopBackgroundAudio()
+
     }
     
     private func tick() {
         guard let end = sessionEndDate else { return }
+        
+        if currentState == .paused {
+            return
+        }
         timeRemaining = max(Int(end.timeIntervalSinceNow), 0)
         
         debugLog()
         
         if timeRemaining <= 0 {
             transitionToNextState()
-        }
+        } else {updateDisplay()}
     }
 
     private func transitionToNextState() {
-        print("➡️ Переход к следующему состоянию")
+        print("Переход к следующему состоянию")
         
         switch currentState {
         case .work:
             cyclesCompleted += 1
-            currentState = shouldTakeLongBreak() ? .longBreak : .shortBreak
-            pomodorosUpdated?(pomodorosCompleted)
+            if shouldTakeLongBreak() {
+                currentState = .longBreak
+                pomodorosUpdated?(pomodorosCompleted)
+            } else {
+                currentState = .shortBreak
+                pomodorosUpdated?(pomodorosCompleted)
+            }
             
         case .shortBreak:
             currentState = .work
@@ -189,23 +206,38 @@ class HomeViewControllerModel {
         case .longBreak:
             cyclesCompleted = 0
             currentState = .work
+            awaitingManualStartAfterLongBreak = true
             
         case .paused:
             return
         }
         
         resetTimerForCurrentState()
+        
+        if awaitingManualStartAfterLongBreak {
+            sessionStartDate = nil
+            sessionEndDate = nil
+            stateChanged?(currentState)
+            updateDisplay()
+            stopTimer()
+            cancelAllNotifications()
+            print("Новый цикл начинается вручную после длинного перерыва")
+            return
+        }
+        
+        // Автоматический запуск для всех остальных состояний
         sessionStartDate = Date()
         sessionEndDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
         
         stateChanged?(currentState)
         updateDisplay()
-        
-        debugLog() // лог после перехода
+        debugLog()
         
         stopTimer()
         startTimer()
+       // scheduleNotifications()
     }
+
 
     func catchUpIfNeeded() {
         guard let endDate = sessionEndDate else { return }
@@ -271,6 +303,34 @@ class HomeViewControllerModel {
         }
     }
     
+    private func startBackgroundAudio() {
+        guard let url = Bundle.main.url(forResource: "silence", withExtension: "wav") else {
+            print("Файл silence.mp3 не найден")
+            return
+        }
+        
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try AVAudioSession.sharedInstance().setActive(true)
+            
+            audioPlayer = try AVAudioPlayer(contentsOf: url)
+            audioPlayer?.numberOfLoops = -1 //  бесконечно
+            audioPlayer?.volume = 0.01
+            audioPlayer?.play()
+            
+            print("Запущено фоновое аудио")
+        } catch {
+            print("Ошибка запуска аудио: \(error)")
+        }
+    }
+
+    private func stopBackgroundAudio() {
+        audioPlayer?.stop()
+        audioPlayer = nil
+        try? AVAudioSession.sharedInstance().setActive(false)
+        print("Фоновое аудио остановлено")
+    }
+
     // MARK: - UI Updates
     func updateDisplay() {
         DispatchQueue.main.async { [weak self] in
@@ -307,7 +367,7 @@ class HomeViewControllerModel {
         
         let interval = endDate.timeIntervalSinceNow
         guard interval > 1 else {
-            print("⚠️ Слишком маленький интервал для уведомления: \(interval)")
+            print("Слишком маленький интервал для уведомления: \(interval)")
             return
         }
         
@@ -334,13 +394,12 @@ class HomeViewControllerModel {
         
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
-                print("❌ Ошибка добавления уведомления: \(error.localizedDescription)")
+                print(" Ошибка добавления уведомления: \(error.localizedDescription)")
             } else {
-                print("✅ Уведомление запланировано через \(Int(interval)) сек.")
+                print("Уведомление запланировано через \(Int(interval)) сек.")
             }
         }
     }
-
     
     func cancelAllNotifications() {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
