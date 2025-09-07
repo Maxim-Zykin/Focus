@@ -121,7 +121,7 @@ class HomeViewController: UIViewController {
 //    }
     
     @objc private func appWillEnterForeground() {
-        model.catchUpIfNeeded()   // ✅ догоняем, если в фоне цикл закончился
+        model.catchUpIfNeeded()   // догоняем, если в фоне цикл закончился
         model.handleAppWillEnterForeground()
     }
 
@@ -181,7 +181,9 @@ class HomeViewController: UIViewController {
         }
         
         model.progressUpdated = { [weak self] progress in
-            self?.progressView.setProgress(Float(progress), animated: progress != 0)
+            guard let self = self else { return }
+            let animated = self.model.currentState != .paused && progress != 0
+            self.progressView.setProgress(Float(progress), animated: animated)
         }
         
         model.timerReset = { [weak self] in
