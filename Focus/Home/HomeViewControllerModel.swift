@@ -39,6 +39,8 @@ class HomeViewControllerModel {
     private var pausedState: TimerState?
     private var audioPlayer: AVAudioPlayer?
     private var awaitingManualStartAfterLongBreak = false
+    private var progressAtPause: Double?
+
     
     enum TimerState {
         case work
@@ -124,23 +126,26 @@ class HomeViewControllerModel {
         cancelAllNotifications()
         stateChanged?(currentState)
         endBackgroundTask()
+        
     }
 
     func resumeTimer() {
         guard currentState == .paused, timer == nil, let restoreState = pausedState else { return }
         
-        currentState = restoreState   // восстанавливает правильное состояние
+        currentState = restoreState
         sessionEndDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
         
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             self?.tick()
         }
         RunLoop.current.add(timer!, forMode: .common)
-        
         isTimerActive = true
+        
         scheduleNotifications()
+        startBackgroundAudio()
         stateChanged?(currentState)
     }
+
 
     func stopTimer() {
         timer?.invalidate()
@@ -177,14 +182,18 @@ class HomeViewControllerModel {
         if currentState == .paused {
             return
         }
+        
         timeRemaining = max(Int(end.timeIntervalSinceNow), 0)
         
         debugLog()
         
         if timeRemaining <= 0 {
             transitionToNextState()
-        } else {updateDisplay()}
+        } else {
+            updateDisplay()
+        }
     }
+
 
     private func transitionToNextState() {
         print("Переход к следующему состоянию")
@@ -225,7 +234,6 @@ class HomeViewControllerModel {
             return
         }
         
-        // Автоматический запуск для всех остальных состояний
         sessionStartDate = Date()
         sessionEndDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
         
@@ -237,7 +245,6 @@ class HomeViewControllerModel {
         startTimer()
        // scheduleNotifications()
     }
-
 
     func catchUpIfNeeded() {
         guard let endDate = sessionEndDate else { return }
@@ -347,15 +354,26 @@ class HomeViewControllerModel {
     }
     
     private func updateProgress() {
-        guard let start = sessionStartDate, let end = sessionEndDate else {
+        let stateForTotal: TimerState = (currentState == .paused ? (pausedState ?? .work) : currentState)
+
+        let total: Int
+        switch stateForTotal {
+        case .work:       total = workDuration
+        case .shortBreak: total = shortBreakDuration
+        case .longBreak:  total = longBreakDuration
+        case .paused:
+            total = max(workDuration, shortBreakDuration, longBreakDuration)
+        }
+
+        guard total > 0 else {
             progressUpdated?(1.0)
             return
         }
-        let now = Date()
-        let progress = CGFloat((end.timeIntervalSince1970 - now.timeIntervalSince1970) /
-                               (end.timeIntervalSince1970 - start.timeIntervalSince1970))
-        progressUpdated?(max(0, min(1, progress)))
+        let ratio = max(0, min(1, CGFloat(Double(timeRemaining) / Double(total))))
+        progressUpdated?(ratio)
     }
+
+
     
     // MARK: - Notifications
     func requestNotificationPermissions() {
