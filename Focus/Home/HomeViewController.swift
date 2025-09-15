@@ -185,6 +185,7 @@ class HomeViewController: UIViewController {
             let animated = self.model.currentState != .paused && progress != 0
             self.progressView.setProgress(Float(progress), animated: animated)
         }
+
         
         model.timerReset = { [weak self] in
             self?.progressView.setProgress(1.0, animated: false)
