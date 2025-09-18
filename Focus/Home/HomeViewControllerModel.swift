@@ -313,28 +313,24 @@ class HomeViewControllerModel {
     
     private func startBackgroundAudio() {
         guard let url = Bundle.main.url(forResource: "silence", withExtension: "wav") else {
-            print("Файл silence.wav не найден")
+            print("Файл silence.mp3 не найден")
             return
         }
-
+        
         do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback,
-                                    mode: .default,
-                                    options: [.mixWithOthers, .duckOthers, .allowBluetooth])
-            try session.setActive(true, options: .notifyOthersOnDeactivation)
-
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try AVAudioSession.sharedInstance().setActive(true)
+            
             audioPlayer = try AVAudioPlayer(contentsOf: url)
-            audioPlayer?.numberOfLoops = -1   // бесконечно
-            audioPlayer?.volume = 0.01        // почти тишина
-            audioPlayer?.prepareToPlay()
+            audioPlayer?.numberOfLoops = -1 //  бесконечно
+            audioPlayer?.volume = 0.01
             audioPlayer?.play()
-            print("Фоновое аудио запущено")
+            
+            print("Запущено фоновое аудио")
         } catch {
             print("Ошибка запуска аудио: \(error)")
         }
     }
-
 
     private func stopBackgroundAudio() {
         audioPlayer?.stop()
