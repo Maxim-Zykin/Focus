@@ -112,6 +112,7 @@ class HomeViewControllerModel {
         timerStarted?()
         stateChanged?(currentState)
         progressUpdated?(1.0)
+        tick()
     }
     
     func pauseTimer() {
@@ -144,6 +145,7 @@ class HomeViewControllerModel {
         scheduleNotifications()
         startBackgroundAudio()
         stateChanged?(currentState)
+        tick()
     }
 
 
@@ -248,7 +250,6 @@ class HomeViewControllerModel {
 
     func catchUpIfNeeded() {
         guard let endDate = sessionEndDate else { return }
-        
         // если время сессии истекло, но UI ещё не обновился
         if Date() >= endDate {
             transitionToNextState()
@@ -312,24 +313,28 @@ class HomeViewControllerModel {
     
     private func startBackgroundAudio() {
         guard let url = Bundle.main.url(forResource: "silence", withExtension: "wav") else {
-            print("Файл silence.mp3 не найден")
+            print("Файл silence.wav не найден")
             return
         }
-        
+
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
-            try AVAudioSession.sharedInstance().setActive(true)
-            
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback,
+                                    mode: .default,
+                                    options: [.mixWithOthers, .duckOthers, .allowBluetooth])
+            try session.setActive(true, options: .notifyOthersOnDeactivation)
+
             audioPlayer = try AVAudioPlayer(contentsOf: url)
-            audioPlayer?.numberOfLoops = -1 //  бесконечно
-            audioPlayer?.volume = 0.01
+            audioPlayer?.numberOfLoops = -1   // бесконечно
+            audioPlayer?.volume = 0.01        // почти тишина
+            audioPlayer?.prepareToPlay()
             audioPlayer?.play()
-            
-            print("Запущено фоновое аудио")
+            print("Фоновое аудио запущено")
         } catch {
             print("Ошибка запуска аудио: \(error)")
         }
     }
+
 
     private func stopBackgroundAudio() {
         audioPlayer?.stop()
@@ -398,8 +403,8 @@ class HomeViewControllerModel {
             content.title = Resouces.Text.Label.breakIsCompleted //"☕️ Перерыв окончен!"
             content.body = Resouces.Text.Label.timeForWork //"Пора вернуться к работе."
         case .longBreak:
-            content.title = "🎉 Длинный перерыв окончен!"
-            content.body = "Можно начинать новый цикл."
+            content.title = Resouces.Text.Label.longBreakIsOverTitle //"🎉 Длинный перерыв окончен!"
+            content.body = Resouces.Text.Label.longBreakIsOver //"Можно начинать новый цикл."
         case .paused:
             return
         }

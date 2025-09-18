@@ -35,6 +35,23 @@
         }
       }
     },
+    "длинный перерыв закончен" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🎉 A long break is over!"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🎉 Длинный перерыв окончен!"
+          }
+        }
+      }
+    },
     "короткий перерыв" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -48,6 +65,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Время сделать перерыв."
+          }
+        }
+      }
+    },
+    "новый цикл" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can start a new cycle."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Можно начинать новый цикл."
           }
         }
       }

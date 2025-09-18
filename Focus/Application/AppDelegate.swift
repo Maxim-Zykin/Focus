@@ -45,10 +45,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             }
         }
         
-        // В application(_:didFinishLaunchingWithOptions:) или scene(_:willConnectTo:options:)
         UNUserNotificationCenter.current().delegate = self
 
-        // Добавьте категорию для действий
+
         let action = UNNotificationAction(identifier: "OPEN_APP", title: "Открыть", options: .foreground)
         let category = UNNotificationCategory(identifier: "STATE_CHANGE", actions: [action], intentIdentifiers: [])
         UNUserNotificationCenter.current().setNotificationCategories([category])

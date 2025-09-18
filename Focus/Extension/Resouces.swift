@@ -38,6 +38,8 @@ enum Resouces {
             static let work = Bundle.main.localizedString(forKey: "работа", value: "", table: localizable)
             static let shortBreak = Bundle.main.localizedString(forKey: "короткий перерыв", value: "", table: localizable)
             static let longBreak = Bundle.main.localizedString(forKey: "длинный перерыв", value: "", table: localizable)
+            static let longBreakIsOverTitle = Bundle.main.localizedString(forKey: "длинный перерыв закончен", value: "", table: localizable)
+            static let longBreakIsOver = Bundle.main.localizedString(forKey: "новый цикл", value: "", table: localizable)
             static let workIsCompleted = Bundle.main.localizedString(forKey: "Время вышло ⏰", value: "", table: localizable)
             static let sessionIsCompleted = Bundle.main.localizedString(forKey: "сессия +завершена", value: "", table: localizable)
             static let breakIsCompleted = Bundle.main.localizedString(forKey: "Перерыв завершён", value: "", table: localizable)
