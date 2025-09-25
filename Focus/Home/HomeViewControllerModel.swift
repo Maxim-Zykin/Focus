@@ -189,10 +189,12 @@ class HomeViewControllerModel {
         
         debugLog()
         
+        DispatchQueue.main.async {
+            [weak self] in
+            self?.updateDisplay()
+        }
         if timeRemaining <= 0 {
             transitionToNextState()
-        } else {
-            updateDisplay()
         }
     }
 
@@ -341,11 +343,8 @@ class HomeViewControllerModel {
 
     // MARK: - UI Updates
     func updateDisplay() {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
             self.updateTimeLabel()
             self.updateProgress()
-        }
     }
     
     private func updateTimeLabel() {
@@ -374,8 +373,6 @@ class HomeViewControllerModel {
         progressUpdated?(ratio)
     }
 
-
-    
     // MARK: - Notifications
     func requestNotificationPermissions() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }

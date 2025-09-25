@@ -170,26 +170,34 @@ class HomeViewController: UIViewController {
     
     private func bindModel() {
         model.timerUpdated = { [weak self] timeString in
-            self?.timeLabel.text = timeString
+            DispatchQueue.main.async {
+                self?.timeLabel.text = timeString
+            }
         }
         
         model.stateChanged = { [weak self] state in
             self?.updateUI(for: state)
             if case .work = state {
-                self?.updatePomodoroCircles()
+                DispatchQueue.main.async {
+                    self?.updatePomodoroCircles()
+                }
             }
         }
         
         model.progressUpdated = { [weak self] progress in
-            guard let self = self else { return }
-            let animated = self.model.currentState != .paused && progress != 0
-            self.progressView.setProgress(Float(progress), animated: animated)
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                let animated = self.model.currentState != .paused && progress != 0
+                self.progressView.setProgress(Float(progress), animated: animated)
+            }
         }
 
         
         model.timerReset = { [weak self] in
-            self?.progressView.setProgress(1.0, animated: false)
-            self?.timeLabel.text = "00:00"
+            DispatchQueue.main.async {
+                self?.progressView.setProgress(1.0, animated: false)
+                self?.timeLabel.text = "00:00"
+            }
         }
     }
     
