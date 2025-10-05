@@ -115,11 +115,6 @@ class HomeViewController: UIViewController {
         )
     }
     
-//    @objc private func appWillEnterForeground() {
-//        model.handleAppWillEnterForeground()
-//        
-//    }
-    
     @objc private func appWillEnterForeground() {
         model.catchUpIfNeeded()   // догоняем, если в фоне цикл закончился
         model.handleAppWillEnterForeground()
@@ -240,18 +235,26 @@ class HomeViewController: UIViewController {
     @objc private func startButtonTapped() {
         if model.currentState == .paused {
             model.resumeTimer()
+            vibrate()
         } else {
             model.startTimer()
+            vibrate()
         }
     }
     
     @objc private func pauseButtonTapped() {
         model.pauseTimer()
+        vibrate()
     }
     
     @objc private func resetButtonTapped() {
         model.resetTimer()
         setupPomodoroCircles()
+    }
+    
+    private func vibrate() {
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.impactOccurred()
     }
     
     // MARK: - UI Updates

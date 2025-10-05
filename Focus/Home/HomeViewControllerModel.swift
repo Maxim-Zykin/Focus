@@ -247,7 +247,6 @@ class HomeViewControllerModel {
         
         stopTimer()
         startTimer()
-       // scheduleNotifications()
     }
 
     func catchUpIfNeeded() {
@@ -438,3 +437,4 @@ class HomeViewControllerModel {
     }
 
 }
+
