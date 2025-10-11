@@ -29,28 +29,28 @@ class HomeViewController: UIViewController {
         return view
     }()
     
-    private let startButton: UIButton = {
+    private let playPauseButton: UIButton = {
         var config = UIButton.Configuration.filled()
         config.title = Resouces.Text.Label.start
         config.baseBackgroundColor = .systemGreen
         config.cornerStyle = .large
         return UIButton(configuration: config)
     }()
-    
-    private let pauseButton: UIButton = {
-        var config = UIButton.Configuration.filled()
-        config.title = Resouces.Text.Label.pause
-        config.baseBackgroundColor = .systemOrange
-        config.cornerStyle = .large
-        return UIButton(configuration: config)
-    }()
-    
+
     private let resetButton: UIButton = {
         var config = UIButton.Configuration.filled()
         config.title = Resouces.Text.Label.reset
         config.baseBackgroundColor = .systemRed
         config.cornerStyle = .large
         return UIButton(configuration: config)
+    }()
+
+    private lazy var buttonStack: UIStackView = {
+        let stack = UIStackView(arrangedSubviews: [playPauseButton, resetButton])
+        stack.axis = .horizontal
+        stack.spacing = 16
+        stack.distribution = .fillEqually
+        return stack
     }()
     
     private let stateLabel: UILabel = {
@@ -66,14 +66,6 @@ class HomeViewController: UIViewController {
         let stack = UIStackView()
         stack.axis = .horizontal
         stack.spacing = 10
-        stack.distribution = .fillEqually
-        return stack
-    }()
-    
-    private lazy var buttonStack: UIStackView = {
-        let stack = UIStackView(arrangedSubviews: [startButton, pauseButton, resetButton])
-        stack.axis = .horizontal
-        stack.spacing = 16
         stack.distribution = .fillEqually
         return stack
     }()
@@ -158,10 +150,10 @@ class HomeViewController: UIViewController {
     }
     
     private func setupActions() {
-        startButton.addTarget(self, action: #selector(startButtonTapped), for: .touchUpInside)
-        pauseButton.addTarget(self, action: #selector(pauseButtonTapped), for: .touchUpInside)
+        playPauseButton.addTarget(self, action: #selector(playPauseButtonTapped), for: .touchUpInside)
         resetButton.addTarget(self, action: #selector(resetButtonTapped), for: .touchUpInside)
     }
+
     
     private func bindModel() {
         model.timerUpdated = { [weak self] timeString in
@@ -232,22 +224,22 @@ class HomeViewController: UIViewController {
     }
     
     // MARK: - Actions
-    @objc private func startButtonTapped() {
-        if model.currentState == .paused {
-            model.resumeTimer()
-            vibrate()
-        } else {
+    
+    @objc private func playPauseButtonTapped() {
+        vibrate()
+        if !model.isTimerActive && model.currentState == .work && model.cyclesCompleted == 0 {
+            // ещё не запускали ни разу = запускаем заново
             model.startTimer()
-            vibrate()
+        } else if model.currentState == .paused {
+            model.resumeTimer()
+        } else {
+            model.pauseTimer()
         }
     }
-    
-    @objc private func pauseButtonTapped() {
-        model.pauseTimer()
-        vibrate()
-    }
-    
+
     @objc private func resetButtonTapped() {
+        guard model.isTimerActive else { return }
+        vibrate()
         model.resetTimer()
         setupPomodoroCircles()
     }
@@ -264,18 +256,48 @@ class HomeViewController: UIViewController {
             stateLabel.text = Resouces.Text.Label.work
             progressView.progressTintColor = .systemBlue
             view.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
+
+            if model.isTimerActive {
+                playPauseButton.configuration?.title = Resouces.Text.Label.pause
+                playPauseButton.configuration?.baseBackgroundColor = .systemOrange
+            } else {
+                playPauseButton.configuration?.title = Resouces.Text.Label.start
+                playPauseButton.configuration?.baseBackgroundColor = .systemGreen
+            }
+
         case .shortBreak:
             stateLabel.text = Resouces.Text.Label.shortBreak
             progressView.progressTintColor = .systemGreen
             view.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.1)
+
+            if model.isTimerActive {
+                playPauseButton.configuration?.title = Resouces.Text.Label.pause
+                playPauseButton.configuration?.baseBackgroundColor = .systemOrange
+            } else {
+                playPauseButton.configuration?.title = Resouces.Text.Label.start
+                playPauseButton.configuration?.baseBackgroundColor = .systemGreen
+            }
+
         case .longBreak:
             stateLabel.text = Resouces.Text.Label.longBreak
             progressView.progressTintColor = .systemOrange
             view.backgroundColor = UIColor.systemOrange.withAlphaComponent(0.1)
+
+            if model.isTimerActive {
+                playPauseButton.configuration?.title = Resouces.Text.Label.pause
+                playPauseButton.configuration?.baseBackgroundColor = .systemOrange
+            } else {
+                playPauseButton.configuration?.title = Resouces.Text.Label.start
+                playPauseButton.configuration?.baseBackgroundColor = .systemGreen
+            }
+
         case .paused:
             stateLabel.text = Resouces.Text.Label.pause
             progressView.progressTintColor = .systemGray
             view.backgroundColor = UIColor.systemGray.withAlphaComponent(0.1)
+
+            playPauseButton.configuration?.title = Resouces.Text.Label.start
+            playPauseButton.configuration?.baseBackgroundColor = .systemGreen
         }
     }
 }
