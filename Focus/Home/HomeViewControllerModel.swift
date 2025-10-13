@@ -17,8 +17,8 @@ struct PomodoroSettings {
     var pomodorosBeforeLongBreak: Int
     
     static let `default` = PomodoroSettings(
-        workDuration: 25,
-        shortBreakDuration: 5,
+        workDuration: 7,
+        shortBreakDuration: 2,
         longBreakDuration: 15,
         pomodorosBeforeLongBreak: 4
     )
@@ -85,8 +85,9 @@ class HomeViewControllerModel {
         updateDurationsFromSettings()
         timeRemaining = workDuration
         cancelAllNotifications()
+        observerAudioInterruptions()
     }
-    
+
     // MARK: - Timer Logic
     func startTimer() {
         startBackgroundAudio()
@@ -257,19 +258,81 @@ class HomeViewControllerModel {
         }
     }
     
+    // MARK: - Observers
+    private func observerAudioInterruptions() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAudioInterruption(_:)),
+            name: AVAudioSession.interruptionNotification,
+            object: nil
+        )
+    }
+
+    @objc private func handleAudioInterruption(_ notification: Notification) {
+        print("Обработка аудиопрерывания")
+        
+        guard let userInfo = notification.userInfo,
+              let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
+
+        switch type {
+        case .began:
+            print("Начало звонка - пауза")
+            // Ставим на паузу если таймер активен
+            if isTimerActive && currentState != .paused {
+                pauseTimer()
+            }
+            stopBackgroundAudio()
+
+        case .ended:
+            print("Конец звонка - попытка возобновления")
+            
+            // Активируем аудиосессию
+            do {
+                try AVAudioSession.sharedInstance().setActive(true)
+                print("Аудиосессия активирована")
+            } catch {
+                print("Ошибка аудиосессии: \(error)")
+            }
+            
+            startBackgroundAudio()
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                guard let self = self else { return }
+                
+                print("Проверка для возобновления:")
+                print("   - currentState: \(self.currentState)")
+                print("   - pausedState: \(String(describing: self.pausedState))")
+                
+                // Если мы на паузе и есть сохраненное состояние - возобновляем
+                if self.currentState == .paused {
+                    print("Находимся в состоянии паузы - вызываем resumeTimer()")
+                    self.resumeTimer()
+                } else {
+                    print("Не в состоянии паузы, возобновление не требуется")
+                }
+            }
+            
+        @unknown default:
+            break
+        }
+    }
+    
     // MARK: - App Lifecycle
     func handleAppWillEnterForeground() {
         if currentState == .paused {
             updateDisplay()
             return
         }
-        
+
         recalculateTimeRemaining()
         updateDisplay()
-        
-        if timeRemaining <= 0 {
+
+        // Добавьте проверку на awaitingManualStartAfterLongBreak
+        if timeRemaining <= 0 && !awaitingManualStartAfterLongBreak {
             transitionToNextState()
-        } else if isTimerActive && timer == nil {
+        } else if isTimerActive && timer == nil && !awaitingManualStartAfterLongBreak {
+            // Возобновляем таймер только если не ожидаем ручного старта
             timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
                 self?.tick()
             }
