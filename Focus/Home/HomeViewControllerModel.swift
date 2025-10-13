@@ -17,8 +17,8 @@ struct PomodoroSettings {
     var pomodorosBeforeLongBreak: Int
     
     static let `default` = PomodoroSettings(
-        workDuration: 7,
-        shortBreakDuration: 2,
+        workDuration: 25,
+        shortBreakDuration: 5,
         longBreakDuration: 15,
         pomodorosBeforeLongBreak: 4
     )
