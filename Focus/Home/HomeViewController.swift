@@ -178,7 +178,6 @@ class HomeViewController: UIViewController {
                 self.progressView.setProgress(Float(progress), animated: animated)
             }
         }
-
         
         model.timerReset = { [weak self] in
             DispatchQueue.main.async {
